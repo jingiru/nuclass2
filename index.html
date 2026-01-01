@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏫 NU:CLASS - 반편성 프로그램</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ========== 로그인 화면 ========== -->
+    <div id="loginScreen" class="screen">
+        <div class="login-container">
+            <h1>🏫 NU:CLASS</h1>
+            <h3>학생 반편성 지원 프로그램</h3>
+            <p class="login-notice">※ 비밀번호는 최초 로그인 시 자동 등록됩니다.<br>꼭 기록해두세요!</p>
+            
+            <form id="loginForm">
+                <input type="text" id="schoolCodeInput" placeholder="학교 행정표준코드 입력" required>
+                <input type="text" id="gradeInput" placeholder="학년 입력 (예: 2학년)" required>
+                <input type="password" id="passwordInput" placeholder="비밀번호 (숫자 5자리)" maxlength="5" required>
+                <button type="submit" class="login-button">로그인</button>
+            </form>
+            
+            <div id="loginMessage"></div>
+        </div>
+    </div>
+
+    <!-- ========== 대시보드 화면 ========== -->
+    <div id="dashboardScreen" class="screen" style="display: none;">
+        <div class="container">
+            
+            <!-- 상단 학교 정보 -->
+            <div class="school-info">
+                <h2 id="schoolInfoText">학교명 - 학년</h2>
+            </div>
+            <h1>학생 반편성 지원 프로그램 📲NU:CLASS</h1>
+
+            <!-- 고정 헤더 영역 -->
+            <div class="sticky-header">
+                
+                <!-- 버튼 그룹 -->
+                <div class="button-group">
+                    <label for="pdfUpload" class="btn btn-orange">PDF 파일 선택</label>
+                    <input type="file" id="pdfUpload" accept=".pdf" style="display: none;">
+                    
+                    <button id="downloadPdfButton" class="btn btn-red">PDF 다운로드</button>
+                    <button id="downloadExcelButton" class="btn btn-blue">엑셀 다운로드</button>
+                    <button id="globalSwapButton" class="btn btn-green" disabled>바꾸기</button>
+                    <button id="globalMoveButton" class="btn btn-purple" disabled>다른 반으로 이동</button>
+                    <button id="sortByNameButton" class="btn btn-violet">학생 재정렬</button>
+                    <button id="resetDataButton" class="btn btn-danger">데이터 초기화</button>
+                    <button id="logoutButton" class="btn btn-dark">로그아웃</button>
+                </div>
+
+                <!-- 현재 현황 통계 테이블 -->
+                <div id="statsContainer">
+                    <h2>현재 현황</h2>
+                    <table id="currentStats">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 반별 학생 목록 컨테이너 -->
+            <div id="classesContainer" class="class-container"></div>
+
+            <!-- 변경 이력 -->
+            <div id="historyContainer">
+                <h2>변경 이력</h2>
+                <ul id="historyList"></ul>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- PDF.js 라이브러리 (PDF 파싱용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <!-- SheetJS 라이브러리 (엑셀 생성용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- jsPDF 라이브러리 (PDF 생성용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- 메인 스크립트 -->
+    <script src="app.js"></script>
+
+</body>
+</html>
