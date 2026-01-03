@@ -167,6 +167,13 @@ h2 {
     background-color: #00796b;
 }
 
+.btn-gray {
+    background-color: #757575;
+}
+.btn-gray:hover:not(:disabled) {
+    background-color: #616161;
+}
+
 /* ========================================
    로그인 화면
    ======================================== */

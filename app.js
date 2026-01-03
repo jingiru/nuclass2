@@ -6,6 +6,7 @@ let selectedStudents = [];   // 선택된 학생 목록
 let history = [];            // 변경 이력
 let changedStudents = new Set();  // 교환된 학생 표시용
 let movedStudents = new Set();    // 이동된 학생 표시용
+let undoStack = [];  // 되돌리기용 상태 저장 스택
 
 // 현재 로그인 정보
 let currentSession = {
@@ -99,6 +100,7 @@ function initEventListeners() {
     // 버튼들
     document.getElementById('globalSwapButton').addEventListener('click', swapStudents);
     document.getElementById('globalMoveButton').addEventListener('click', moveStudents);
+    document.getElementById('undoButton').addEventListener('click', undoLastAction);
     document.getElementById('sortByNameButton').addEventListener('click', sortByName);
     document.getElementById('resetDataButton').addEventListener('click', resetData);
     document.getElementById('downloadPdfButton').addEventListener('click', downloadPdf);
@@ -778,11 +780,13 @@ function renderClasses() {
         buttonsDiv.className = 'class-buttons';
         buttonsDiv.innerHTML = `
             <button class="btn btn-green btn-swap" disabled>바꾸기</button>
-            <button class="btn btn-purple btn-move" disabled>다른 반으로 이동</button>
+            <button class="btn btn-purple btn-move" disabled>다른 반 이동</button>
+            <button class="btn btn-gray btn-undo" disabled>되돌리기</button>
         `;
         
         buttonsDiv.querySelector('.btn-swap').addEventListener('click', swapStudents);
         buttonsDiv.querySelector('.btn-move').addEventListener('click', moveStudents);
+        buttonsDiv.querySelector('.btn-undo').addEventListener('click', undoLastAction);
         
         classBox.appendChild(buttonsDiv);
         container.appendChild(classBox);
@@ -793,6 +797,9 @@ function renderClasses() {
 
     // 학생 테이블이 다시 그려진 뒤, 열 숨김/표시 및 그리드 즉시 재적용
     applyViewOptions();
+    
+    // 되돌리기 버튼 상태 업데이트
+    updateUndoButtonState();
 }
 
 /* ========================================
@@ -984,6 +991,9 @@ function swapStudents() {
         }
     }
     
+    // ★ 되돌리기용 상태 저장 (작업 전에 호출!)
+    saveStateForUndo();
+    
     // 교환
     const temp = classData[first.cls][first.index];
     classData[first.cls][first.index] = classData[second.cls][second.index];
@@ -1032,6 +1042,9 @@ function moveStudents() {
         return;
     }
     
+    // ★ 되돌리기용 상태 저장 (작업 전에 호출!)
+    saveStateForUndo();
+    
     // 이동할 학생들 추출
     const movingStudents = [];
     
@@ -1070,6 +1083,73 @@ function moveStudents() {
     
     alert('학생 이동이 완료되었습니다.');
 }
+
+
+
+/* ========================================
+   되돌리기(Undo) 기능
+   ======================================== */
+
+// 현재 상태를 undoStack에 저장
+function saveStateForUndo() {
+    const state = {
+        classData: JSON.parse(JSON.stringify(classData)),  // 깊은 복사
+        history: [...history],
+        changedStudents: new Set(changedStudents),
+        movedStudents: new Set(movedStudents)
+    };
+    undoStack.push(state);
+    
+    // 스택이 너무 커지지 않도록 최대 20개까지만 유지
+    if (undoStack.length > 20) {
+        undoStack.shift();
+    }
+    
+    updateUndoButtonState();
+}
+
+// 되돌리기 실행
+function undoLastAction() {
+    if (undoStack.length === 0) {
+        alert('되돌릴 작업이 없습니다.');
+        return;
+    }
+    
+    // 마지막 저장 상태 꺼내기
+    const prevState = undoStack.pop();
+    
+    // 상태 복원
+    classData = prevState.classData;
+    history = prevState.history;
+    changedStudents = prevState.changedStudents;
+    movedStudents = prevState.movedStudents;
+    
+    // 저장 및 화면 갱신
+    saveClassData();
+    selectedStudents = [];
+    renderClasses();
+    renderHistory();
+    
+    updateUndoButtonState();
+}
+
+// 되돌리기 버튼 활성화/비활성화 업데이트
+function updateUndoButtonState() {
+    const hasUndo = undoStack.length > 0;
+    
+    // 상단 되돌리기 버튼
+    const globalUndoBtn = document.getElementById('undoButton');
+    if (globalUndoBtn) {
+        globalUndoBtn.disabled = !hasUndo;
+    }
+    
+    // 반별 되돌리기 버튼들
+    document.querySelectorAll('.btn-undo').forEach(btn => {
+        btn.disabled = !hasUndo;
+    });
+}
+
+
 
 /* ========================================
    이름순 정렬
