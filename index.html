@@ -63,12 +63,49 @@
 
                 <!-- 현재 현황 통계 테이블 -->
                 <div id="statsContainer">
-                    <h2>현재 현황</h2>
+                    <div class="stats-header">
+                        <h2>현재 현황</h2>
+
+                        <!-- 옵션 영역 (우측 배치) -->
+                        <div class="stats-options">
+                            <span class="view-mode-title">보기 방식</span>
+
+                            <span class="option-label">그리드</span>
+
+                            <label class="seg-radio">
+                                <input type="radio" name="gridColumns" value="2" checked>
+                                <span>2</span>
+                            </label>
+
+                            <label class="seg-radio">
+                                <input type="radio" name="gridColumns" value="3">
+                                <span>3</span>
+                            </label>
+
+                            <label class="seg-radio">
+                                <input type="radio" name="gridColumns" value="4">
+                                <span>4</span>
+                            </label>
+
+                            <label class="seg-check">
+                                <input type="checkbox" id="showBirthdate" checked>
+                                <span>생년월일</span>
+                            </label>
+
+                            <label class="seg-check">
+                                <input type="checkbox" id="showGender" checked>
+                                <span>성별</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <table id="currentStats">
                         <thead></thead>
                         <tbody></tbody>
                     </table>
                 </div>
+
+
             </div>
 
             <!-- 반별 학생 목록 컨테이너 -->

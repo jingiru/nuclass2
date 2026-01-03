@@ -18,6 +18,47 @@ let currentSession = {
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ========================================
+   보기 옵션(그리드/표시열) 상태
+   ======================================== */
+let viewOptions = {
+    gridColumns: 2,       // 2 | 3 | 4
+    showBirthdate: true,  // 생년월일 열 표시
+    showGender: true      // 성별 열 표시
+};
+
+function getViewOptionsKey() {
+    // 세션별로 보기 설정을 따로 저장(학교/학년별)
+    if (currentSession && currentSession.schoolName && currentSession.grade) {
+        return `nuclass_viewopts_${currentSession.schoolName}_${currentSession.grade}`;
+    }
+    return 'nuclass_viewopts_default';
+}
+
+function loadViewOptions() {
+    try {
+        const saved = localStorage.getItem(getViewOptionsKey());
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            viewOptions = {
+                gridColumns: Number(parsed.gridColumns) || 2,
+                showBirthdate: parsed.showBirthdate !== false,
+                showGender: parsed.showGender !== false
+            };
+        }
+    } catch (e) {
+        console.warn('보기 옵션 로드 실패:', e);
+    }
+}
+
+function saveViewOptions() {
+    try {
+        localStorage.setItem(getViewOptionsKey(), JSON.stringify(viewOptions));
+    } catch (e) {
+        console.warn('보기 옵션 저장 실패:', e);
+    }
+}
+
+/* ========================================
    초기화
    ======================================== */
 document.addEventListener('DOMContentLoaded', function() {
@@ -63,7 +104,119 @@ function initEventListeners() {
     dropZone.addEventListener('dragenter', handleDragEnter);
     dropZone.addEventListener('dragover', handleDragOver);
     dropZone.addEventListener('dragleave', handleDragLeave);
-    dropZone.addEventListener('drop', handleDrop);    
+    dropZone.addEventListener('drop', handleDrop);
+
+    // =========================
+    // 보기 옵션(그리드/표시열) 이벤트
+    // =========================
+    initViewOptionControls();
+}
+
+/* ========================================
+   보기 옵션 컨트롤 이벤트 / 적용
+   ======================================== */
+function initViewOptionControls() {
+    // 라디오(그리드 2/3/4)
+    const gridRadios = document.querySelectorAll('input[name="gridColumns"]');
+    gridRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const value = Number(radio.value);
+            if ([2, 3, 4].includes(value)) {
+                viewOptions.gridColumns = value;
+                saveViewOptions();
+                applyGridColumns();        // 즉시 반영
+            }
+        });
+    });
+
+    // 체크박스(생년월일/성별)
+    const birth = document.getElementById('showBirthdate');
+    const gender = document.getElementById('showGender');
+
+    if (birth) {
+        birth.addEventListener('change', () => {
+            viewOptions.showBirthdate = birth.checked;
+            saveViewOptions();
+            applyColumnVisibility();      // 즉시 반영
+        });
+    }
+
+    if (gender) {
+        gender.addEventListener('change', () => {
+            viewOptions.showGender = gender.checked;
+            saveViewOptions();
+            applyColumnVisibility();      // 즉시 반영
+        });
+    }
+}
+
+function syncViewControlsFromState() {
+    // 라디오 동기화
+    const gridRadios = document.querySelectorAll('input[name="gridColumns"]');
+    gridRadios.forEach(r => {
+        r.checked = Number(r.value) === Number(viewOptions.gridColumns);
+    });
+
+    // 체크박스 동기화
+    const birth = document.getElementById('showBirthdate');
+    const gender = document.getElementById('showGender');
+
+    if (birth) birth.checked = !!viewOptions.showBirthdate;
+    if (gender) gender.checked = !!viewOptions.showGender;
+}
+
+function applyViewOptions() {
+    // (1) 컨트롤 상태 동기화
+    syncViewControlsFromState();
+
+    // (2) 실제 화면 반영
+    applyGridColumns();
+    applyColumnVisibility();
+}
+
+function applyGridColumns() {
+    const container = document.getElementById('classesContainer');
+    if (!container) return;
+
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = `repeat(${viewOptions.gridColumns}, minmax(320px, 1fr))`;
+
+    if (!container.style.gap) {
+        container.style.gap = '20px';
+    }
+}
+
+/**
+ * 학생 테이블에서 "생년월일", "성별" 열을 전체 숨김/표시
+ * 컬럼 순서:
+ * 0 번호, 1 성명, 2 생년월일, 3 성별, 4 기준성적, 5~7 이전학적...
+ */
+function applyColumnVisibility() {
+    const tables = document.querySelectorAll('.student-table');
+    if (!tables || tables.length === 0) return;
+
+    tables.forEach(table => {
+        // thead 첫 번째 줄(th rowspans 있는 줄)
+        const theadRows = table.querySelectorAll('thead tr');
+        if (theadRows.length > 0) {
+            const topHeaderCells = theadRows[0].children;
+            toggleCellDisplay(topHeaderCells[2], viewOptions.showBirthdate);
+            toggleCellDisplay(topHeaderCells[3], viewOptions.showGender);
+        }
+
+        // tbody 모든 행 td
+        const bodyRows = table.querySelectorAll('tbody tr');
+        bodyRows.forEach(tr => {
+            const tds = tr.children;
+            toggleCellDisplay(tds[2], viewOptions.showBirthdate); // 생년월일
+            toggleCellDisplay(tds[3], viewOptions.showGender);    // 성별
+        });
+    });
+}
+
+function toggleCellDisplay(cell, show) {
+    if (!cell) return;
+    cell.style.display = show ? '' : 'none';
 }
 
 /* ========================================
@@ -81,6 +234,10 @@ function showDashboardScreen() {
     // 학교 정보 표시
     document.getElementById('schoolInfoText').textContent = 
         `${currentSession.schoolName} - ${currentSession.grade}`;
+
+    // 보기 옵션 로드 및 적용
+    loadViewOptions();
+    applyViewOptions();
 }
 
 /* ========================================
@@ -207,7 +364,6 @@ async function handleLogin(event) {
     showDashboardScreen();
 }
 
-
 function handleLogout() {
     if (!confirm('정말 로그아웃 하시겠습니까?')) return;
     
@@ -233,7 +389,6 @@ function handleLogout() {
 function getDataKey() {
     return `nuclass_data_${currentSession.schoolName}_${currentSession.grade}`;
 }
-
 
 function saveClassData() {
     const dataToSave = {
@@ -262,8 +417,6 @@ function loadClassData() {
     renderClasses();
     renderHistory();
 }
-
-
 
 /* ========================================
    드래그 앤 드롭 처리
@@ -308,9 +461,6 @@ function handleDrop(e) {
     // 기존 PDF 처리 함수 호출
     processPdfFile(file);
 }
-
-
-
 
 /* ========================================
    PDF 파싱 (PDF.js)
@@ -447,90 +597,9 @@ function parsePdfText(text) {
             성별: gender,
             기준성적: score,
             이전학적: '전입',
-            이전학적학년: grade,    // 현재 학년으로 설정
-            이전학적반: '0',        // 0으로 설정
-            이전학적번호: '0'       // 0으로 설정
-        });
-    }
-    
-    return classes;
-}function parsePdfText(text) {
-    const classes = {};
-    
-    // 패턴 1: 일반 학생 (이전학적이 숫자로 된 경우)
-    // 예: 3 1 1 따뜻이 2011.07.23 여 634.17 2 5 28
-    const normalPattern = /(\d)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d{4}\.\d{2}\.\d{2})\s+(남|여)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\d+)/g;
-    
-    // 패턴 2: 전입생 (이전학적이 "전입"인 경우)
-    // 예: 2 1 29 하늘이 2012.02.10 여 984.01 전입
-    const transferPattern = /(\d)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d{4}\.\d{2}\.\d{2})\s+(남|여)\s+([\d.]+)\s+전입/g;
-    
-    let match;
-    
-    // 일반 학생 파싱
-    while ((match = normalPattern.exec(text)) !== null) {
-        const [
-            _,           // 전체 매치
-            grade,       // 학년
-            classNum,    // 반
-            number,      // 번호
-            name,        // 성명
-            birthDate,   // 생년월일
-            gender,      // 성별
-            score,       // 기준성적
-            prevGrade,   // 이전학년
-            prevClass,   // 이전반
-            prevNumber   // 이전번호
-        ] = match;
-        
-        const classKey = `${grade}-${classNum}`;
-        
-        if (!classes[classKey]) {
-            classes[classKey] = [];
-        }
-        
-        classes[classKey].push({
-            번호: number,
-            성명: name,
-            생년월일: birthDate,
-            성별: gender,
-            기준성적: score,
-            이전학적: `${prevGrade} ${prevClass} ${prevNumber}`,
-            이전학적학년: prevGrade,
-            이전학적반: prevClass,
-            이전학적번호: prevNumber
-        });
-    }
-    
-    // 전입생 파싱
-    while ((match = transferPattern.exec(text)) !== null) {
-        const [
-            _,           // 전체 매치
-            grade,       // 학년
-            classNum,    // 반
-            number,      // 번호
-            name,        // 성명
-            birthDate,   // 생년월일
-            gender,      // 성별
-            score        // 기준성적
-        ] = match;
-        
-        const classKey = `${grade}-${classNum}`;
-        
-        if (!classes[classKey]) {
-            classes[classKey] = [];
-        }
-        
-        classes[classKey].push({
-            번호: number,
-            성명: name,
-            생년월일: birthDate,
-            성별: gender,
-            기준성적: score,
-            이전학적: '전입',
-            이전학적학년: String(parseInt(grade) - 1),    // 현재 학년으로 설정
-            이전학적반: '0',        // 0으로 설정
-            이전학적번호: '0'       // 0으로 설정
+            이전학적학년: String(parseInt(grade) - 1),
+            이전학적반: '0',
+            이전학적번호: '0'
         });
     }
     
@@ -668,6 +737,9 @@ function renderClasses() {
     
     updateButtonState();
     renderStatistics();
+
+    // 학생 테이블이 다시 그려진 뒤, 열 숨김/표시 및 그리드 즉시 재적용
+    applyViewOptions();
 }
 
 /* ========================================
@@ -1098,14 +1170,14 @@ function downloadPdf() {
                 cellPadding: 2, 
                 textColor: [0, 0, 0],  
                 font: 'NotoSansKR',
-                halign: 'center'       // 내용 가운데 정렬
+                halign: 'center'
             },
             headStyles: { 
                 fontSize: 8, 
                 fillColor: [76, 165, 80],
                 textColor: [255, 255, 255],  
-                halign: 'center',      // 헤더 가운데 정렬
-                fontStyle: 'bold'      // 헤더 굵게
+                halign: 'center',
+                fontStyle: 'bold'
             }
         });
         
@@ -1132,6 +1204,7 @@ function downloadPdf() {
     
     doc.save(`${currentSession.schoolName}_${currentSession.grade}_반편성결과.pdf`);
 }
+
 /* ========================================
    엑셀 다운로드 (SheetJS)
    ======================================== */
@@ -1149,7 +1222,7 @@ function downloadExcel() {
     
     validClasses.sort((a, b) => {
         const [gradeA, classA] = a.split('-').map(Number);
-        const [gradeB, classB] = b.split('-').map(Number);
+        const [gradeB, classB] = a.split('-').map(Number);
         if (gradeA !== gradeB) return gradeA - gradeB;
         return classA - classB;
     }).forEach(cls => {
