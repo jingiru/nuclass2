@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 저장된 세션 확인
     loadSession();
     
+    // 자동완성 목록 로드
+    loadAutocompleteList();
+    
     // 이벤트 리스너 등록
     initEventListeners();
 });
@@ -45,6 +48,14 @@ function initEventListeners() {
     document.getElementById('resetDataButton').addEventListener('click', resetData);
     document.getElementById('downloadPdfButton').addEventListener('click', downloadPdf);
     document.getElementById('downloadExcelButton').addEventListener('click', downloadExcel);
+    
+    // 백업/복원
+    document.getElementById('backupButton').addEventListener('click', backupToJson);
+    document.getElementById('restoreButton').addEventListener('click', () => {
+        alert('백업한 json파일을 업로드 해 주세요.');
+        document.getElementById('jsonUpload').click();
+    });
+    document.getElementById('jsonUpload').addEventListener('change', restoreFromJson);
 }
 
 /* ========================================
@@ -94,6 +105,50 @@ function clearSession() {
 }
 
 /* ========================================
+   자동완성 목록 관리 (localStorage)
+   ======================================== */
+function loadAutocompleteList() {
+    // 학교 이름 목록 로드
+    const schoolNames = JSON.parse(localStorage.getItem('nuclass_schoolNames') || '[]');
+    const schoolNameList = document.getElementById('schoolNameList');
+    schoolNameList.innerHTML = '';
+    schoolNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        schoolNameList.appendChild(option);
+    });
+    
+    // 학년 목록 로드
+    const grades = JSON.parse(localStorage.getItem('nuclass_grades') || '[]');
+    const gradeList = document.getElementById('gradeList');
+    gradeList.innerHTML = '';
+    grades.forEach(grade => {
+        const option = document.createElement('option');
+        option.value = grade;
+        gradeList.appendChild(option);
+    });
+}
+
+function saveAutocompleteList(schoolName, grade) {
+    // 학교 이름 저장 (중복 제거, 최근 것이 위로)
+    let schoolNames = JSON.parse(localStorage.getItem('nuclass_schoolNames') || '[]');
+    schoolNames = schoolNames.filter(name => name !== schoolName);
+    schoolNames.unshift(schoolName);
+    schoolNames = schoolNames.slice(0, 10);  // 최대 10개 유지
+    localStorage.setItem('nuclass_schoolNames', JSON.stringify(schoolNames));
+    
+    // 학년 저장 (중복 제거, 최근 것이 위로)
+    let grades = JSON.parse(localStorage.getItem('nuclass_grades') || '[]');
+    grades = grades.filter(g => g !== grade);
+    grades.unshift(grade);
+    grades = grades.slice(0, 10);  // 최대 10개 유지
+    localStorage.setItem('nuclass_grades', JSON.stringify(grades));
+    
+    // datalist 갱신
+    loadAutocompleteList();
+}
+
+/* ========================================
    로그인 처리
    ======================================== */
 async function handleLogin(event) {
@@ -139,6 +194,7 @@ async function handleLogin(event) {
         isLoggedIn: true
     };
     saveSession();
+    saveAutocompleteList(schoolName, grade);  // 자동완성 목록에 저장
     loadClassData();
     showDashboardScreen();
 }
@@ -174,7 +230,9 @@ function getDataKey() {
 function saveClassData() {
     const dataToSave = {
         classData: classData,
-        history: history
+        history: history,
+        changedStudents: Array.from(changedStudents),
+        movedStudents: Array.from(movedStudents)
     };
     localStorage.setItem(getDataKey(), JSON.stringify(dataToSave));
 }
@@ -185,9 +243,13 @@ function loadClassData() {
         const parsed = JSON.parse(saved);
         classData = parsed.classData || {};
         history = parsed.history || [];
+        changedStudents = new Set(parsed.changedStudents || []);
+        movedStudents = new Set(parsed.movedStudents || []);
     } else {
         classData = {};
         history = [];
+        changedStudents = new Set();
+        movedStudents = new Set();
     }
     renderClasses();
     renderHistory();
@@ -252,60 +314,45 @@ async function handlePdfUpload(event) {
 
 function parsePdfText(text) {
     const classes = {};
-    const lines = text.split(/\s+/);
     
-    // 숫자만 추출하는 함수
-    function extractNumber(value) {
-        const match = String(value).match(/^\d+/);
-        return match ? match[0] : '';
-    }
+    // 학생 데이터 패턴 (정규식)
+    // 학년 반 번호 성명 생년월일 성별 기준성적 이전학년 이전반 이전번호
+    // 예: 3 1 1 따뜻이 2011.07.23 여 634.17 2 5 28
+    const studentPattern = /(\d)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d{4}\.\d{2}\.\d{2})\s+(남|여)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\d+)/g;
     
-    // 토큰을 순회하며 학생 데이터 추출
-    // 예상 패턴: 학년 반 번호 성명 생년월일 성별 기준성적 이전학년 이전반 이전번호
-    let i = 0;
-    while (i < lines.length) {
-        const token = lines[i];
+    let match;
+    while ((match = studentPattern.exec(text)) !== null) {
+        const [
+            _,           // 전체 매치
+            grade,       // 학년
+            classNum,    // 반
+            number,      // 번호
+            name,        // 성명
+            birthDate,   // 생년월일
+            gender,      // 성별
+            score,       // 기준성적
+            prevGrade,   // 이전학년
+            prevClass,   // 이전반
+            prevNumber   // 이전번호
+        ] = match;
         
-        // "N학년" 패턴 찾기
-        if (/^\d+학년$/.test(token)) {
-            const grade = extractNumber(token);
-            const cls = lines[i + 1];
-            const num = lines[i + 2];
-            const name = lines[i + 3];
-            const dob = lines[i + 4];
-            const gender = lines[i + 5];
-            const score = lines[i + 6];
-            
-            // 이전학적 정보
-            const prevGrade = extractNumber(lines[i + 7] || '');
-            const prevClass = extractNumber(lines[i + 8] || '');
-            const prevNum = extractNumber(lines[i + 9] || '');
-            
-            // 유효성 검사
-            if (grade && cls && num && name && /^\d+$/.test(num)) {
-                const classKey = `${grade}-${cls}`;
-                
-                if (!classes[classKey]) {
-                    classes[classKey] = [];
-                }
-                
-                classes[classKey].push({
-                    번호: num,
-                    성명: name,
-                    생년월일: dob || '',
-                    성별: gender || '',
-                    기준성적: score || '',
-                    이전학적: `${prevGrade} ${prevClass} ${prevNum}`.trim(),
-                    이전학적학년: prevGrade,
-                    이전학적반: prevClass,
-                    이전학적번호: prevNum
-                });
-                
-                i += 10; // 다음 학생으로
-                continue;
-            }
+        const classKey = `${grade}-${classNum}`;
+        
+        if (!classes[classKey]) {
+            classes[classKey] = [];
         }
-        i++;
+        
+        classes[classKey].push({
+            번호: number,
+            성명: name,
+            생년월일: birthDate,
+            성별: gender,
+            기준성적: score,
+            이전학적: `${prevGrade} ${prevClass} ${prevNumber}`,
+            이전학적학년: prevGrade,
+            이전학적반: prevClass,
+            이전학적번호: prevNumber
+        });
     }
     
     return classes;
@@ -464,7 +511,7 @@ function renderStatistics() {
         headerHTML += `<th>이전 ${i}반</th>`;
     }
     headerHTML += `
-            <th>기준성적 평균</th>
+            <th>성적 평균</th>
             <th>최고점(이름)</th>
             <th>최저점(이름)</th>
         </tr>
@@ -907,4 +954,91 @@ function downloadExcel() {
     ];
     
     XLSX.writeFile(wb, `${currentSession.schoolName}_${currentSession.grade}_반편성결과.xlsx`);
+}
+
+/* ========================================
+   백업 (JSON 파일로 저장)
+   ======================================== */
+function backupToJson() {
+    if (Object.keys(classData).length === 0) {
+        alert('백업할 데이터가 없습니다.');
+        return;
+    }
+    
+    alert('모든 작업 내역이 json파일로 저장됩니다.');
+    
+    const dataToSave = {
+        schoolName: currentSession.schoolName,
+        grade: currentSession.grade,
+        savedAt: new Date().toISOString(),
+        classData: classData,
+        history: history,
+        changedStudents: Array.from(changedStudents),
+        movedStudents: Array.from(movedStudents)
+    };
+    
+    const jsonString = JSON.stringify(dataToSave, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const filename = `${currentSession.schoolName}_${currentSession.grade}_백업_${timestamp}.json`;
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/* ========================================
+   복원 (JSON 파일에서 불러오기)
+   ======================================== */
+function restoreFromJson(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.json')) {
+        alert('JSON 파일만 불러올 수 있습니다.');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            if (!data.classData) {
+                throw new Error('유효하지 않은 백업 파일입니다.');
+            }
+            
+            const savedTime = data.savedAt ? new Date(data.savedAt).toLocaleString('ko-KR') : '알 수 없음';
+            const savedSchool = data.schoolName || '알 수 없음';
+            const savedGrade = data.grade || '알 수 없음';
+            
+            if (!confirm(`다음 백업을 복원하시겠습니까?\n\n학교: ${savedSchool}\n학년: ${savedGrade}\n저장 시간: ${savedTime}`)) {
+                return;
+            }
+            
+            classData = data.classData;
+            history = data.history || [];
+            changedStudents = new Set(data.changedStudents || []);
+            movedStudents = new Set(data.movedStudents || []);
+            
+            saveClassData();
+            renderClasses();
+            renderHistory();
+            
+            alert('복원이 완료되었습니다!');
+            
+        } catch (error) {
+            console.error('JSON 파싱 오류:', error);
+            alert('백업 파일을 불러오는 중 오류가 발생했습니다.');
+        }
+    };
+    
+    reader.readAsText(file);
+    event.target.value = '';
 }

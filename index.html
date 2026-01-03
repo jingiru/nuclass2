@@ -17,8 +17,12 @@
             <p class="login-notice">※ 비밀번호는 최초 로그인 시 자동 등록됩니다.<br>꼭 기록해두세요!</p>
             
             <form id="loginForm">
-                <input type="text" id="schoolNameInput" placeholder="학교 이름 (예: 한국고등학교)" required>
-                <input type="text" id="gradeInput" placeholder="학년 입력 (예: 2학년)" required>
+                <input type="text" id="schoolNameInput" list="schoolNameList" placeholder="학교 이름 (예: 한국고등학교)" required autocomplete="off">
+                <datalist id="schoolNameList"></datalist>
+                
+                <input type="text" id="gradeInput" list="gradeList" placeholder="학년 입력 (예: 2학년)" required autocomplete="off">
+                <datalist id="gradeList"></datalist>
+                
                 <input type="password" id="passwordInput" placeholder="비밀번호 (숫자 5자리)" maxlength="5" required>
                 <button type="submit" class="login-button">로그인</button>
             </form>
@@ -45,11 +49,14 @@
                     <label for="pdfUpload" class="btn btn-orange">PDF 파일 선택</label>
                     <input type="file" id="pdfUpload" accept=".pdf" style="display: none;">
                     
-                    <button id="downloadPdfButton" class="btn btn-red">PDF 다운로드</button>
-                    <button id="downloadExcelButton" class="btn btn-blue">엑셀 다운로드</button>
                     <button id="globalSwapButton" class="btn btn-green" disabled>바꾸기</button>
                     <button id="globalMoveButton" class="btn btn-purple" disabled>다른 반으로 이동</button>
                     <button id="sortByNameButton" class="btn btn-violet">학생 재정렬</button>
+                    <button id="downloadPdfButton" class="btn btn-red">PDF(확인용) 다운로드</button>
+                    <button id="downloadExcelButton" class="btn btn-blue">엑셀(나이스용) 다운로드</button>
+                    <button id="backupButton" class="btn btn-teal">백업</button>
+                    <button id="restoreButton" class="btn btn-teal">복원</button>
+                    <input type="file" id="jsonUpload" accept=".json" style="display: none;">
                     <button id="resetDataButton" class="btn btn-danger">데이터 초기화</button>
                     <button id="logoutButton" class="btn btn-dark">로그아웃</button>
                 </div>

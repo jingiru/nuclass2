@@ -89,7 +89,7 @@ h2 {
     display: inline-block;
     color: white;
     text-align: center;
-    padding: 10px 20px;
+    padding: 10px 13px;
     font-size: 14px;
     border: none;
     border-radius: 5px;
@@ -158,6 +158,13 @@ h2 {
 }
 .btn-dark:hover:not(:disabled) {
     background-color: #000000;
+}
+
+.btn-teal {
+    background-color: #009688;
+}
+.btn-teal:hover:not(:disabled) {
+    background-color: #00796b;
 }
 
 /* ========================================
@@ -264,7 +271,7 @@ h2 {
     background-color: #4CAF50;
     color: white;
     font-weight: bold;
-    padding: 8px 10px;
+    padding: 8px 8px;
     text-align: center;
     border: 1px solid #ddd;
     font-size: 12px;
