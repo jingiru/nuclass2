@@ -56,6 +56,14 @@ function initEventListeners() {
         document.getElementById('jsonUpload').click();
     });
     document.getElementById('jsonUpload').addEventListener('change', restoreFromJson);
+
+    // 드래그 앤 드롭 이벤트 (맨 끝에 추가)
+    const dropZone = document.getElementById('dropZone');
+    
+    dropZone.addEventListener('dragenter', handleDragEnter);
+    dropZone.addEventListener('dragover', handleDragOver);
+    dropZone.addEventListener('dragleave', handleDragLeave);
+    dropZone.addEventListener('drop', handleDrop);    
 }
 
 /* ========================================
@@ -255,6 +263,55 @@ function loadClassData() {
     renderHistory();
 }
 
+
+
+/* ========================================
+   드래그 앤 드롭 처리
+   ======================================== */
+function handleDragEnter(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    document.getElementById('dropZone').classList.add('drag-over');
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 자식 요소로 이동할 때는 drag-over 유지
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+        document.getElementById('dropZone').classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    document.getElementById('dropZone').classList.remove('drag-over');
+    
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    
+    // PDF 파일인지 확인
+    if (file.type !== 'application/pdf') {
+        alert('PDF 파일만 업로드 가능합니다.');
+        return;
+    }
+    
+    // 기존 PDF 처리 함수 호출
+    processPdfFile(file);
+}
+
+
+
+
 /* ========================================
    PDF 파싱 (PDF.js)
    ======================================== */
@@ -266,7 +323,14 @@ async function handlePdfUpload(event) {
         alert('PDF 파일만 업로드 가능합니다.');
         return;
     }
+
+    processPdfFile(file);
+
+    // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
+    event.target.value = '';
+}
     
+async function processPdfFile(file) {
     // 로딩 표시
     const container = document.getElementById('classesContainer');
     container.innerHTML = `
@@ -307,10 +371,8 @@ async function handlePdfUpload(event) {
         alert('PDF 파일 처리 중 오류가 발생했습니다.');
         renderClasses();
     }
-    
-    // 파일 입력 초기화 (같은 파일 다시 선택 가능하도록)
-    event.target.value = '';
 }
+
 function parsePdfText(text) {
     const classes = {};
     
@@ -500,6 +562,7 @@ function renderClasses() {
                 <div class="icon">📄</div>
                 <p>데이터가 없습니다.</p>
                 <p>PDF 파일을 업로드해주세요.</p>
+                <p>(여기에 파일 드래그&드롭 가능)</p>
             </div>
         `;
         renderStatistics();

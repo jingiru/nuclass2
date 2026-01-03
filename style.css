@@ -99,7 +99,7 @@ h2 {
 }
 
 .btn:disabled {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: not-allowed;
 }
 
@@ -296,6 +296,45 @@ h2 {
     font-weight: bold;
     background-color: #e3f2fd;
 }
+
+
+/* ========================================
+   드래그 앤 드롭 영역
+   ======================================== */
+.drop-zone {
+    position: relative;
+    min-height: 200px;
+    transition: all 0.3s ease;
+}
+
+/* 드래그 중일 때 시각적 피드백 */
+.drop-zone.drag-over {
+    background-color: #e8f5e9;
+    border: 3px dashed #4CAF50;
+    border-radius: 10px;
+}
+
+/* 드래그 중일 때 오버레이 메시지 */
+.drop-zone.drag-over::before {
+    content: "📄 여기에 PDF 파일을 놓으세요";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(76, 175, 80, 0.9);
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 10px;
+    z-index: 100;
+}
+
+
+
 
 /* ========================================
    반별 컨테이너
