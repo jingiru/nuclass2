@@ -36,7 +36,7 @@ h2 {
    컨테이너
    ======================================== */
 .container {
-    width: 95%;
+    width: 90%;
     max-width: 1800px;
     margin: 0 auto;
     padding: 20px;
@@ -504,6 +504,18 @@ h2 {
     background-color: #e8e8e8;
 }
 
+
+.special-input{
+  width: 100%;
+  max-width: 100%;
+  padding: 4px 6px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+
 /* ========================================
    학생 행
    ======================================== */
@@ -528,6 +540,9 @@ h2 {
 .student-row.moved {
     background-color: #D1F2EB;
 }
+
+
+
 
 /* ========================================
    반 내 버튼 컨테이너

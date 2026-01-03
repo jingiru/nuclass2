@@ -14,6 +14,17 @@ let currentSession = {
     isLoggedIn: false
 };
 
+
+let __saveTimer = null;
+function scheduleSaveClassData() {
+    clearTimeout(__saveTimer);
+    __saveTimer = setTimeout(() => {
+        saveClassData();
+    }, 300);
+}
+
+
+
 // PDF.js 워커 설정
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -23,7 +34,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 let viewOptions = {
     gridColumns: 2,       // 2 | 3 | 4
     showBirthdate: true,  // 생년월일 열 표시
-    showGender: true      // 성별 열 표시
+    showGender: true,     // 성별 열 표시
+    showSpecial: false   // ✅ 특이사항 열 표시
+
 };
 
 function getViewOptionsKey() {
@@ -42,7 +55,8 @@ function loadViewOptions() {
             viewOptions = {
                 gridColumns: Number(parsed.gridColumns) || 2,
                 showBirthdate: parsed.showBirthdate !== false,
-                showGender: parsed.showGender !== false
+                showGender: parsed.showGender !== false,
+                showSpecial: parsed.showSpecial === true // ✅ 기본 false 유지
             };
         }
     } catch (e) {
@@ -132,12 +146,13 @@ function initViewOptionControls() {
     // 체크박스(생년월일/성별)
     const birth = document.getElementById('showBirthdate');
     const gender = document.getElementById('showGender');
+    const special = document.getElementById('showSpecial'); 
 
     if (birth) {
         birth.addEventListener('change', () => {
             viewOptions.showBirthdate = birth.checked;
             saveViewOptions();
-            applyColumnVisibility();      // 즉시 반영
+            applyColumnVisibility();      
         });
     }
 
@@ -145,7 +160,15 @@ function initViewOptionControls() {
         gender.addEventListener('change', () => {
             viewOptions.showGender = gender.checked;
             saveViewOptions();
-            applyColumnVisibility();      // 즉시 반영
+            applyColumnVisibility();      
+        });
+    }
+
+    if (special) {
+        special.addEventListener('change', () => {
+            viewOptions.showSpecial = special.checked;
+            saveViewOptions();
+            applyColumnVisibility(); 
         });
     }
 }
@@ -160,9 +183,11 @@ function syncViewControlsFromState() {
     // 체크박스 동기화
     const birth = document.getElementById('showBirthdate');
     const gender = document.getElementById('showGender');
+    const special = document.getElementById('showSpecial');
 
     if (birth) birth.checked = !!viewOptions.showBirthdate;
     if (gender) gender.checked = !!viewOptions.showGender;
+    if (special) special.checked = !!viewOptions.showSpecial; 
 }
 
 function applyViewOptions() {
@@ -202,6 +227,9 @@ function applyColumnVisibility() {
             const topHeaderCells = theadRows[0].children;
             toggleCellDisplay(topHeaderCells[2], viewOptions.showBirthdate);
             toggleCellDisplay(topHeaderCells[3], viewOptions.showGender);
+
+            const specialTh = table.querySelector('thead .col-special');
+            toggleCellDisplay(specialTh, viewOptions.showSpecial);
         }
 
         // tbody 모든 행 td
@@ -210,6 +238,7 @@ function applyColumnVisibility() {
             const tds = tr.children;
             toggleCellDisplay(tds[2], viewOptions.showBirthdate); // 생년월일
             toggleCellDisplay(tds[3], viewOptions.showGender);    // 성별
+            toggleCellDisplay(tds[8], viewOptions.showSpecial);
         });
     });
 }
@@ -670,11 +699,12 @@ function renderClasses() {
                     <th rowspan="2">성별</th>
                     <th rowspan="2">기준성적</th>
                     <th colspan="3">이전학적</th>
+                    <th rowspan="2" class="col-special">특이사항</th>
                 </tr>
                 <tr>
-                    <th style="width: 40px;">학년</th>
-                    <th style="width: 40px;">반</th>
-                    <th style="width: 40px;">번호</th>
+                    <th>학년</th>
+                    <th>반</th>
+                    <th>번호</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -693,7 +723,9 @@ function renderClasses() {
             
             // 이전반 배경색 클래스
             const prevClassBgClass = prevClass ? `prev-class-${prevClass}` : '';
-            
+
+            const memoValue = student.특이사항 || '';
+            const memoEscaped = String(memoValue).replace(/"/g, '&quot;');
             row.innerHTML = `
                 <td>${student.번호}</td>
                 <td>${student.성명}</td>
@@ -703,7 +735,29 @@ function renderClasses() {
                 <td>${student.이전학적학년 || ''}</td>
                 <td class="${prevClassBgClass}" style="font-weight: bold;">${prevClass}</td>
                 <td>${student.이전학적번호 || ''}</td>
+                <td class="col-special">
+                    <input
+                      type="text"
+                      class="special-input"
+                      placeholder="메모"
+                      value="${memoValue.replace(/"/g, '&quot;')}"
+                    />
+                </td>
+
             `;
+
+            const input = row.querySelector('.special-input');
+            if (input) {
+                // 입력 클릭 시 행 선택 토글 방지
+                input.addEventListener('click', (e) => e.stopPropagation());
+                input.addEventListener('keydown', (e) => e.stopPropagation());
+
+                // 입력 내용 저장 (간단 debounce)
+                input.addEventListener('input', () => {
+                    student.특이사항 = input.value;
+                    scheduleSaveClassData(); // 아래 3단계에서 추가
+                });
+            }
             
             // 상태 표시
             if (changedStudents.has(`${cls}-${student.성명}`)) {
