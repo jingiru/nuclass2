@@ -369,6 +369,14 @@ function renderClasses() {
         cls => cls !== 'history' && cls !== 'undefined'
     );
     
+    // 데이터 유무에 따라 버튼 활성화/비활성화
+    const hasData = validClasses.length > 0;
+    document.getElementById('sortByNameButton').disabled = !hasData;
+    document.getElementById('downloadPdfButton').disabled = !hasData;
+    document.getElementById('downloadExcelButton').disabled = !hasData;
+    document.getElementById('backupButton').disabled = !hasData;
+    document.getElementById('resetDataButton').disabled = !hasData;
+    
     if (validClasses.length === 0) {
         container.innerHTML = `
             <div class="empty-message" style="grid-column: 1 / -1;">
@@ -415,9 +423,9 @@ function renderClasses() {
                     <th colspan="3">이전학적</th>
                 </tr>
                 <tr>
-                    <th>학년</th>
-                    <th>반</th>
-                    <th>번호</th>
+                    <th style="width: 40px;">학년</th>
+                    <th style="width: 40px;">반</th>
+                    <th style="width: 40px;">번호</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -488,39 +496,48 @@ function renderClasses() {
 function renderStatistics() {
     const thead = document.querySelector('#currentStats thead');
     const tbody = document.querySelector('#currentStats tbody');
-    
+
     const validClasses = Object.keys(classData).filter(
         cls => cls !== 'history' && cls !== 'undefined'
     );
-    
+
     if (validClasses.length === 0) {
         thead.innerHTML = '';
         tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px;">데이터가 없습니다.</td></tr>';
         return;
     }
-    
-    const numClasses = validClasses.length;
-    
-    // 헤더 생성
+
+    // ✅ 이전학적반의 최대값 찾기 (이 값만큼 "이전 n반" 컬럼을 만든다)
+    let prevMax = 0;
+    validClasses.forEach(cls => {
+        const students = classData[cls] || [];
+        students.forEach(student => {
+            const v = parseInt(student.이전학적반, 10);
+            if (!isNaN(v)) prevMax = Math.max(prevMax, v);
+        });
+    });
+    prevMax = Math.max(prevMax, 1); // 안전장치
+
+    // 헤더 생성 (✅ prevMax 기준)
     let headerHTML = `
         <tr>
             <th>구분</th>
             <th>합계</th>
     `;
-    for (let i = 1; i <= numClasses; i++) {
+    for (let i = 1; i <= prevMax; i++) {
         headerHTML += `<th>이전 ${i}반</th>`;
     }
     headerHTML += `
-            <th>성적 평균</th>
+            <th>기준성적 평균</th>
             <th>최고점(이름)</th>
             <th>최저점(이름)</th>
         </tr>
     `;
     thead.innerHTML = headerHTML;
-    
+
     // 통계 계산
     const classStats = {};
-    
+
     validClasses.forEach(cls => {
         const students = classData[cls];
         let totalScore = 0;
@@ -528,11 +545,13 @@ function renderStatistics() {
         let minScore = Infinity;
         let maxStudent = '';
         let minStudent = '';
-        const previousClassCount = Array(numClasses).fill(0);
-        
+
+        // ✅ 이전반 카운트 배열도 prevMax 길이로
+        const previousClassCount = Array(prevMax).fill(0);
+
         students.forEach(student => {
             const score = parseFloat(student.기준성적) || 0;
-            
+
             if (score > maxScore) {
                 maxScore = score;
                 maxStudent = student.성명;
@@ -542,14 +561,14 @@ function renderStatistics() {
                 minStudent = student.성명;
             }
             totalScore += score;
-            
-            // 이전반 통계
-            const prevClass = parseInt(student.이전학적반) - 1;
-            if (prevClass >= 0 && prevClass < numClasses) {
+
+            // 이전반 통계 (✅ prevMax 범위로 카운트)
+            const prevClass = parseInt(student.이전학적반, 10) - 1;
+            if (!isNaN(prevClass) && prevClass >= 0 && prevClass < prevMax) {
                 previousClassCount[prevClass]++;
             }
         });
-        
+
         classStats[cls] = {
             studentCount: students.length,
             avgScore: students.length ? (totalScore / students.length).toFixed(2) : '-',
@@ -560,10 +579,10 @@ function renderStatistics() {
             previousClassCount
         };
     });
-    
+
     // 본문 생성
     tbody.innerHTML = '';
-    
+
     validClasses.sort((a, b) => {
         const [gradeA, classA] = a.split('-').map(Number);
         const [gradeB, classB] = b.split('-').map(Number);
@@ -572,15 +591,15 @@ function renderStatistics() {
     }).forEach(cls => {
         const stats = classStats[cls];
         const row = document.createElement('tr');
-        
+
         const maxCount = Math.max(...stats.previousClassCount);
         const minCount = Math.min(...stats.previousClassCount);
-        
+
         let rowHTML = `
             <td>${cls}</td>
             <td>${stats.studentCount}</td>
         `;
-        
+
         stats.previousClassCount.forEach(count => {
             let style = '';
             if (count === maxCount && stats.previousClassCount.filter(c => c === maxCount).length === 1) {
@@ -590,13 +609,13 @@ function renderStatistics() {
             }
             rowHTML += `<td style="${style}">${count}</td>`;
         });
-        
+
         rowHTML += `
             <td>${stats.avgScore}</td>
             <td>${stats.maxScore !== '-' ? `${stats.maxScore} (${stats.maxStudent})` : '-'}</td>
             <td>${stats.minScore !== '-' ? `${stats.minScore} (${stats.minStudent})` : '-'}</td>
         `;
-        
+
         row.innerHTML = rowHTML;
         tbody.appendChild(row);
     });

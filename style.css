@@ -279,7 +279,7 @@ h2 {
 }
 
 #currentStats td {
-    padding: 6px 10px;
+    padding: 4px 6px;
     border: 1px solid #ddd;
     font-size: 12px;
     background-color: #f9f9f9;
@@ -344,7 +344,7 @@ h2 {
 .student-table th,
 .student-table td {
     border: 1px solid #ddd;
-    padding: 6px 8px;
+    padding: 5px 6px;
     text-align: center;
     font-size: 12px;
 }
