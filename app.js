@@ -699,7 +699,7 @@ function renderClasses() {
                     <th rowspan="2">성별</th>
                     <th rowspan="2">기준성적</th>
                     <th colspan="3">이전학적</th>
-                    <th rowspan="2" class="col-special">특이사항</th>
+                    <th rowspan="2" class="col-special">메모</th>
                 </tr>
                 <tr>
                     <th>학년</th>
@@ -739,7 +739,6 @@ function renderClasses() {
                     <input
                       type="text"
                       class="special-input"
-                      placeholder="메모"
                       value="${memoValue.replace(/"/g, '&quot;')}"
                     />
                 </td>
