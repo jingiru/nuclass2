@@ -54,10 +54,10 @@
             <!-- 탭 추가 -->
             <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee;">
                 <button id="groupTab" class="tab-btn active" onclick="switchTab('group')">
-                    그룹 방식 (서로 떨어지기)
+                    개별 분리 방식(A:B:C)
                 </button>
                 <button id="teamTab" class="tab-btn" onclick="switchTab('team')">
-                    팀 방식 (1:N)
+                    1:N 방식(A:BCD)
                 </button>
             </div>
             
@@ -102,25 +102,29 @@
             <div id="teamTabContent" class="tab-content" style="display: none;">
                 <div class="redflag-input-area">
                     <p style="color: #666; font-size: 13px; margin-bottom: 10px;">
-                        <strong>팀장 1명</strong>은 <strong>팀원들</strong>과 다른 반이어야 합니다.<br>
-                        (팀원들끼리는 같은 반 가능)
+                        <strong>지정 학생</strong>과 <strong>분리 학생들</strong>은 다른 반이어야 합니다.<br>
+                        (분리 학생들끼리는 같은 반 가능)
                     </p>
                     
                     <!-- 팀장 입력 -->
-                    <label style="font-weight: bold; display: block; margin-bottom: 5px;">팀장 (1명)</label>
-                    <div class="student-input-wrapper">
-                        <input type="text" id="teamLeaderInput" 
-                               placeholder="팀장 이름 입력"
-                               autocomplete="off">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <label style="font-weight: bold; white-space: nowrap; min-width: 110px;">지정 학생(1명)</label>
+                        <div class="student-input-wrapper" style="flex: 1;">
+                            <input type="text" id="teamLeaderInput" 
+                                   placeholder="지정 학생 이름 입력"
+                                   autocomplete="off">
+                        </div>
                     </div>
-                    <div id="teamLeaderTag" class="student-tags" style="margin-bottom: 15px;"></div>
-                    
+                    <div id="teamLeaderTag" class="student-tags" style="margin-bottom: 10px;"></div>
+
                     <!-- 팀원 입력 -->
-                    <label style="font-weight: bold; display: block; margin-bottom: 5px;">팀원들 (여러 명)</label>
-                    <div class="student-input-wrapper">
-                        <input type="text" id="teamMemberInput" 
-                               placeholder="팀원 이름 입력 후 Enter"
-                               autocomplete="off">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <label style="font-weight: bold; white-space: nowrap; min-width: 110px;">분리 학생(N명)</label>
+                        <div class="student-input-wrapper" style="flex: 1;">
+                            <input type="text" id="teamMemberInput" 
+                                   placeholder="분리해야 할 학생 이름 입력 후 Enter"
+                                   autocomplete="off">
+                        </div>
                     </div>
                     <div id="teamMemberTags" class="student-tags"></div>
                     
@@ -131,7 +135,7 @@
                     
                     <!-- 추가 버튼 -->
                     <button id="addTeam" class="btn btn-danger" style="width: 100%; margin-top: 10px;">
-                        팀 추가
+                        그룹 추가
                     </button>
                 </div>
                 

@@ -2112,7 +2112,7 @@ function switchTab(tabName) {
 let selectedTeamLeader = '';
 let selectedTeamMembers = [];
 
-// 팀장 입력 처리
+// 지정 학생 입력 처리
 function handleTeamLeaderInput(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -2140,7 +2140,7 @@ function handleTeamLeaderInput(e) {
         }
         
         // 단일 학생
-        selectedTeamLeader = candidates[0].displayName;
+        selectedTeamLeader = candidates[0].name;
         renderTeamLeaderTag();
         input.value = '';
     }
@@ -2164,11 +2164,11 @@ function handleTeamMemberInput(e) {
             return;
         }
         
-        // 팀장과 중복 체크 (이름만 비교)
+        // 지정 학생과 중복 체크 (이름만 비교)
         const inputBaseName = value;
         const leaderBaseName = selectedTeamLeader.match(/^(.+?)(?:\(|$)/)?.[1];
         if (inputBaseName === leaderBaseName) {
-            alert('팀장과 같은 학생은 팀원으로 추가할 수 없습니다.');
+            alert('지정 학생과 같은 학생은 분리 학생으로 추가할 수 없습니다.');
             return;
         }
         
@@ -2176,7 +2176,7 @@ function handleTeamMemberInput(e) {
             // 동명이인 - 선택 UI 표시
             showStudentSelectionUI(candidates, (selected) => {
                 if (selectedTeamMembers.includes(selected)) {
-                    alert('이미 추가된 팀원입니다.');
+                    alert('이미 추가된 학생입니다.');
                     return;
                 }
                 selectedTeamMembers.push(selected);
@@ -2187,9 +2187,9 @@ function handleTeamMemberInput(e) {
         }
         
         // 단일 학생
-        const displayName = candidates[0].displayName;
+        const displayName = candidates[0].name;
         if (selectedTeamMembers.includes(displayName)) {
-            alert('이미 추가된 팀원입니다.');
+            alert('이미 추가된 학생입니다.');
             return;
         }
         
@@ -2246,12 +2246,12 @@ function removeTeamMember(index) {
 // 팀 추가
 function addTeam() {
     if (!selectedTeamLeader) {
-        alert('팀장을 선택해주세요.');
+        alert('지정 학생을 선택해주세요.');
         return;
     }
     
     if (selectedTeamMembers.length === 0) {
-        alert('최소 1명의 팀원을 추가해주세요.');
+        alert('최소 1명의 분리 학생을 추가해주세요.');
         return;
     }
     
@@ -2307,14 +2307,14 @@ function renderTeamList() {
         item.innerHTML = `
             <div class="group-info">
                 <div class="group-students">
-                    <strong style="color: #f44336;">팀장:</strong> ${team.leader} / 
-                    <strong style="color: #2196F3;">팀원:</strong> ${team.members.join(', ')}
+                    <strong style="color: #f44336;">지정 학생:</strong> ${team.leader} / 
+                    <strong style="color: #2196F3;">분리 학생:</strong> ${team.members.join(', ')}
                 </div>
                 <div class="group-reason">${team.reason}</div>
                 <div class="group-status ${violation.hasViolation ? 'violation' : 'ok'}">
                     ${violation.hasViolation 
-                        ? `⚠️ 팀장과 같은 반: ${violation.details}` 
-                        : '✓ 팀장이 팀원들과 다른 반'}
+                        ? `⚠️ 지정 학생과 같은 반: ${violation.details}` 
+                        : '✓ 지정 학생이 분리 학생들과 다른 반'}
                 </div>
             </div>
             <button class="delete-group" onclick="deleteTeam(${team.id})">&times;</button>
@@ -2881,7 +2881,7 @@ function getViolationDetails(cls) {
         });
         
         if (violatingMembers.length > 0) {
-            details.push(`[팀] 팀장 ${team.leader} ↔ ${violatingMembers.join(', ')}`);
+            details.push(`[1:N] ${team.leader} ↔ ${violatingMembers.join(', ')}`);
         }
     });
     
