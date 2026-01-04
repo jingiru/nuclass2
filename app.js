@@ -560,14 +560,15 @@ function parsePdfText(text) {
     
     // 패턴 1: 일반 학생 (이전학적이 숫자로 된 경우)
     // 예1: 3 1 1 따뜻이 2011.07.23. 여 634.17 2 5 28
-    // 예2: 3학년 1 1 따뜻이 2011.07.23. 여 634.17 2 5 28
-    const normalPattern = /(\d+)(?:학년)?\s+(\d+)\s+(\d+)\s+(.+?)\s+(\d{4}\.\d{2}\.\d{2}\.)\s+(남|여)\s+([\d.]+)\s+(\d+)(?:학년)?\s+(\d+)\s+(\d+)/g;
+    // 예2: 3학년 1 1 Ayu Lestari 2011.07.23. 여 634.17 2 5 28\
+    // \s*(?:학년)?\s+ - "2학년", "2 학년", "2" 모두 처리 가능
+    const normalPattern = /(\d+)\s*(?:학년)?\s+(\d+)\s+(\d+)\s+([^\d]+?)\s+(\d{4}\.\d{2}\.\d{2})\.?\s+(남|여)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\d+)/g;
     
     // 패턴 2: 전입생 (이전학적이 "전입"인 경우)
     // 예1: 2 1 29 하늘이 2012.02.10. 여 984.01 전입
     // 예2: 2학년 1 29 하늘이 2012.02.10. 여 984.01 전입 
-    const transferPattern = /(\d+)(?:학년)?\s+(\d+)\s+(\d+)\s+(.+?)\s+(\d{4}\.\d{2}\.\d{2}\.)\s+(남|여)\s+([\d.]+)\s+전입/g;
-    
+    const transferInPattern = /(\d+)\s*(?:학년)?\s+(\d+)\s+(\d+)\s+([^\d]+?)\s+(\d{4}\.\d{2}\.\d{2})\.?\s+(남|여)\s+([\d.]+)\s+전입/g;
+     
     let match;
     
     // 일반 학생 파싱
@@ -594,8 +595,8 @@ function parsePdfText(text) {
         
         classes[classKey].push({
             번호: number,
-            성명: name,
-            생년월일: birthDate,
+            성명: name.trim(),
+            생년월일: birthDate + '.',
             성별: gender,
             기준성적: score,
             이전학적: `${prevGrade} ${prevClass} ${prevNumber}`,
@@ -606,7 +607,7 @@ function parsePdfText(text) {
     }
     
     // 전입생 파싱
-    while ((match = transferPattern.exec(text)) !== null) {
+    while ((match = transferInPattern.exec(text)) !== null) {
         const [
             _,           // 전체 매치
             grade,       // 학년
@@ -626,8 +627,8 @@ function parsePdfText(text) {
         
         classes[classKey].push({
             번호: number,
-            성명: name,
-            생년월일: birthDate,
+            성명: name.trim(),
+            생년월일: birthDate + '.',
             성별: gender,
             기준성적: score,
             이전학적: '전입',
