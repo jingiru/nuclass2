@@ -2396,14 +2396,14 @@ function updateAllStudentsList() {
             }
             nameCount[name].push({
                 name: name,
-                birthdate: student.생년월일 || '',
+                prevClass: student.이전학적반 || '',
                 gender: student.성별 || '',
                 class: cls
             });
             
             allStudents.push({
                 name: name,
-                birthdate: student.생년월일 || '',
+                prevClass: student.이전학적반 || '',
                 gender: student.성별 || '',
                 class: cls
             });
@@ -2414,11 +2414,9 @@ function updateAllStudentsList() {
     allStudents.forEach(student => {
         const option = document.createElement('option');
         
-        // 동명이인인 경우 (월일, 성별) 추가
+        // 동명이인인 경우 (이전반, 성별) 추가
         if (nameCount[student.name].length > 1) {
-            // 생년월일에서 월일만 추출 (예: 2011.07.23. -> 0723)
-            const monthDay = extractMonthDay(student.birthdate);
-            option.value = `${student.name}(${monthDay}, ${student.gender})`;
+            option.value = `${student.name}(${student.prevClass}반, ${student.gender})`;
         } else {
             option.value = student.name;
         }
@@ -2427,17 +2425,6 @@ function updateAllStudentsList() {
     });
 }
 
-// 생년월일에서 월일 추출 (예: "2011.07.23." -> "0723")
-function extractMonthDay(birthdate) {
-    if (!birthdate) return '????';
-    
-    // "2011.07.23." 형식에서 월, 일 추출
-    const match = birthdate.match(/\d{4}\.(\d{2})\.(\d{2})/);
-    if (match) {
-        return match[1] + match[2];  // "0723"
-    }
-    return '????';
-}
 
 // 학생 입력 키 이벤트 (Enter로 태그 추가)
 function handleStudentInputKeydown(e) {
@@ -2483,11 +2470,11 @@ function validateStudentName(inputValue) {
         const students = classData[cls] || [];
         students.forEach(student => {
             const name = student.성명;
-            const monthDay = extractMonthDay(student.생년월일);
+            const prevClass = student.이전학적반 || '';
             
             // 정확히 일치하거나, 동명이인 형식으로 일치
             if (inputValue === name || 
-                inputValue === `${name}(${monthDay}, ${student.성별})`) {
+                inputValue === `${name}(${prevClass}반, ${student.성별})`) {
                 found = true;
             }
         });
@@ -2630,8 +2617,8 @@ function findStudentClass(studentInput) {
     const nameMatch = studentInput.match(/^(.+?)(?:\(|$)/);
     const baseName = nameMatch ? nameMatch[1] : studentInput;
     
-    // 동명이인 형식인 경우 월일, 성별도 추출
-    const detailMatch = studentInput.match(/\((\d{4}), (남|여)\)/);
+    // 동명이인 형식인 경우 이전반, 성별도 추출
+    const detailMatch = studentInput.match(/\((\d+)반, (남|여)\)/);
     
     let foundClass = null;
     
@@ -2643,8 +2630,8 @@ function findStudentClass(studentInput) {
             if (student.성명 === baseName) {
                 // 동명이인 형식이면 추가 검증
                 if (detailMatch) {
-                    const monthDay = extractMonthDay(student.생년월일);
-                    if (monthDay === detailMatch[1] && student.성별 === detailMatch[2]) {
+                    const prevClass = student.이전학적반 || '';
+                    if (prevClass === detailMatch[1] && student.성별 === detailMatch[2]) {
                         foundClass = cls;
                     }
                 } else {
