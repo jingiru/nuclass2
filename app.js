@@ -7,6 +7,9 @@ let history = [];            // 변경 이력
 let changedStudents = new Set();  // 교환된 학생 표시용
 let movedStudents = new Set();    // 이동된 학생 표시용
 let undoStack = [];  // 되돌리기용 상태 저장 스택
+let separationGroups = [];      // 떨어져야 하는 학생 그룹들
+let selectedTagStudents = [];   // 모달에서 현재 선택 중인 학생들 (태그)
+let separationTeams = [];       // 팀 기반 분리
 
 // 현재 로그인 정보
 let currentSession = {
@@ -198,10 +201,19 @@ function initEventListeners() {
     dropZone.addEventListener('dragleave', handleDragLeave);
     dropZone.addEventListener('drop', handleDrop);
 
-    // =========================
     // 보기 옵션(그리드/표시열) 이벤트
-    // =========================
     initViewOptionControls();
+
+    // 빨간불 기능
+    document.getElementById('redFlagButton').addEventListener('click', openRedFlagModal);
+    document.getElementById('redFlagStudentInput').addEventListener('keydown', handleStudentInputKeydown);
+    document.getElementById('addRedFlagGroup').addEventListener('click', addSeparationGroup);
+
+    // 팀 관련 이벤트 추가
+    document.getElementById('teamLeaderInput').addEventListener('keydown', handleTeamLeaderInput);
+    document.getElementById('teamMemberInput').addEventListener('keydown', handleTeamMemberInput);
+    document.getElementById('addTeam').addEventListener('click', addTeam);
+
 }
 
 /* ========================================
@@ -480,6 +492,7 @@ function handleLogout() {
     history = [];
     changedStudents.clear();
     movedStudents.clear();
+    separationTeams = []; 
     
     // 입력 필드 초기화
     document.getElementById('schoolNameInput').value = '';
@@ -521,6 +534,13 @@ function loadClassData() {
         changedStudents = new Set();
         movedStudents = new Set();
     }
+
+    // 빨간불 데이터 로드
+    loadRedFlagData();
+
+    // 팀 데이터 로드 추가
+    loadTeamData();
+
     renderClasses();
     renderHistory();
 }
@@ -637,7 +657,7 @@ function parsePdfText(text) {
     // 예1: 3 1 1 따뜻이 2011.07.23. 여 634.17 2 5 28
     // 예2: 3학년 1 1 Ayu Lestari 2011.07.23. 여 634.17 2 5 28\
     // \s*(?:학년)?\s+ - "2학년", "2 학년", "2" 모두 처리 가능
-    const normalPattern = /(\d+)\s*(?:학년)?\s+(\d+)\s+(\d+)\s+([^\d]+?)\s+(\d{4}\.\d{2}\.\d{2})\.?\s+(남|여)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\d+)/g;
+    const normalPattern = /(\d+)\s*(?:학년)?\s+(\d+)\s+(\d+)\s+([^\d]+?)\s+(\d{4}\.\d{2}\.\d{2})\.?\s+(남|여)\s+([\d.]+)\s+(\d+)\s*(?:학년)?\s+(\d+)\s+(\d+)/g;
     
     // 패턴 2: 전입생 (이전학적이 "전입"인 경우)
     // 예1: 2 1 29 하늘이 2012.02.10. 여 984.01 전입
@@ -899,7 +919,7 @@ function renderStatistics() {
         return;
     }
 
-    // ✅ 이전학적반의 최대값 찾기 (이 값만큼 "이전 n반" 컬럼을 만든다)
+    // 이전학적반의 최대값 찾기 (이 값만큼 "이전 n반" 컬럼을 만든다)
     let prevMax = 0;
     validClasses.forEach(cls => {
         const students = classData[cls] || [];
@@ -985,6 +1005,9 @@ function renderStatistics() {
     // 본문 생성
     tbody.innerHTML = '';
 
+    // 빨간불 위반 개수 계산
+    const classViolations = calculateClassViolations();
+
     validClasses.sort((a, b) => {
         const [gradeA, classA] = a.split('-').map(Number);
         const [gradeB, classB] = b.split('-').map(Number);
@@ -997,8 +1020,27 @@ function renderStatistics() {
         const maxCount = Math.max(...stats.previousClassCount);
         const minCount = Math.min(...stats.previousClassCount);
 
+        // 위반 개수에 따른 빨간색 클래스 결정
+        const violationCount = classViolations[cls] || 0;
+        let violationClass = '';
+        if (violationCount >= 5) {
+            violationClass = 'violation-level-5';
+        } else if (violationCount >= 4) {
+            violationClass = 'violation-level-4';
+        } else if (violationCount >= 3) {
+            violationClass = 'violation-level-3';
+        } else if (violationCount >= 2) {
+            violationClass = 'violation-level-2';
+        } else if (violationCount >= 1) {
+            violationClass = 'violation-level-1';
+        }
+
+        // 툴팁 정보 생성
+        const tooltipText = violationCount > 0 ? getViolationDetails(cls) : '';
+
         let rowHTML = `
-            <td>${cls}</td>
+            <td class="${violationClass}" ${violationCount > 0 ? `data-violation="${cls}"` : ''}>
+                ${cls}${violationCount > 0 ? ` 🚨${violationCount}` : ''}
             <td>${stats.studentCount}</td>
             <td>${stats.maleCount}</td>     
             <td>${stats.femaleCount}</td>   
@@ -1021,6 +1063,15 @@ function renderStatistics() {
         `;
 
         row.innerHTML = rowHTML;
+    
+        // 툴팁 이벤트 추가
+        if (violationCount > 0) {
+            const violationCell = row.querySelector('[data-violation]');
+            violationCell.style.cursor = 'help';
+            violationCell.addEventListener('mouseenter', (e) => showViolationTooltip(e, tooltipText));
+            violationCell.addEventListener('mouseleave', hideViolationTooltip);
+        }
+
         tbody.appendChild(row);
     });
 }
@@ -1278,8 +1329,12 @@ function resetData() {
     changedStudents.clear();
     movedStudents.clear();
     selectedStudents = [];
+    separationGroups = [];
+    separationTeams = [];
     
     localStorage.removeItem(getDataKey());
+    localStorage.removeItem(getRedFlagKey());
+    localStorage.removeItem(getTeamKey());
     
     renderClasses();
     renderHistory();
@@ -1911,7 +1966,9 @@ function backupToJson() {
         classData: classData,
         history: history,
         changedStudents: Array.from(changedStudents),
-        movedStudents: Array.from(movedStudents)
+        movedStudents: Array.from(movedStudents),
+        separationGroups: separationGroups,
+        separationTeams: separationTeams
     };
     
     const jsonString = JSON.stringify(dataToSave, null, 2);
@@ -1963,8 +2020,12 @@ function restoreFromJson(event) {
             history = data.history || [];
             changedStudents = new Set(data.changedStudents || []);
             movedStudents = new Set(data.movedStudents || []);
+            separationGroups = data.separationGroups || [];
+            separationTeams = data.separationTeams || [];
             
             saveClassData();
+            saveRedFlagData();
+            saveTeamData();
             renderClasses();
             renderHistory();
             
@@ -1978,4 +2039,754 @@ function restoreFromJson(event) {
     
     reader.readAsText(file);
     event.target.value = '';
+}
+
+
+/* ========================================
+   빨간불 기능 (떨어져야 하는 학생 관리)
+   ======================================== */
+
+// 빨간불 데이터 저장 키
+function getRedFlagKey() {
+    return `nuclass_redflag_${currentSession.schoolName}_${currentSession.grade}`;
+}
+
+// 빨간불 데이터 저장
+function saveRedFlagData() {
+    localStorage.setItem(getRedFlagKey(), JSON.stringify(separationGroups));
+}
+
+// 빨간불 데이터 불러오기
+function loadRedFlagData() {
+    const saved = localStorage.getItem(getRedFlagKey());
+    if (saved) {
+        separationGroups = JSON.parse(saved);
+    } else {
+        separationGroups = [];
+    }
+}
+
+
+// 팀 데이터 저장 키
+function getTeamKey() {
+    return `nuclass_teams_${currentSession.schoolName}_${currentSession.grade}`;
+}
+
+// 팀 데이터 저장
+function saveTeamData() {
+    localStorage.setItem(getTeamKey(), JSON.stringify(separationTeams));
+}
+
+// 팀 데이터 불러오기
+function loadTeamData() {
+    const saved = localStorage.getItem(getTeamKey());
+    if (saved) {
+        separationTeams = JSON.parse(saved);
+    } else {
+        separationTeams = [];
+    }
+}
+
+
+// 탭 전환
+function switchTab(tabName) {
+    const groupTab = document.getElementById('groupTab');
+    const teamTab = document.getElementById('teamTab');
+    const groupContent = document.getElementById('groupTabContent');
+    const teamContent = document.getElementById('teamTabContent');
+    
+    if (tabName === 'group') {
+        groupTab.classList.add('active');
+        teamTab.classList.remove('active');
+        groupContent.style.display = 'block';
+        teamContent.style.display = 'none';
+    } else {
+        groupTab.classList.remove('active');
+        teamTab.classList.add('active');
+        groupContent.style.display = 'none';
+        teamContent.style.display = 'block';
+    }
+}
+
+
+let selectedTeamLeader = '';
+let selectedTeamMembers = [];
+
+// 팀장 입력 처리
+function handleTeamLeaderInput(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const input = document.getElementById('teamLeaderInput');
+        const value = input.value.trim();
+        
+        if (!value) return;
+        
+        if (!validateStudentName(value)) {
+            alert('학생 목록에 없는 이름입니다.');
+            return;
+        }
+        
+        selectedTeamLeader = value;
+        renderTeamLeaderTag();
+        input.value = '';
+    }
+}
+
+// 팀원 입력 처리
+function handleTeamMemberInput(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const input = document.getElementById('teamMemberInput');
+        const value = input.value.trim();
+        
+        if (!value) return;
+        
+        if (!validateStudentName(value)) {
+            alert('학생 목록에 없는 이름입니다.');
+            return;
+        }
+        
+        if (value === selectedTeamLeader) {
+            alert('팀장과 같은 학생은 팀원으로 추가할 수 없습니다.');
+            return;
+        }
+        
+        if (selectedTeamMembers.includes(value)) {
+            alert('이미 추가된 팀원입니다.');
+            return;
+        }
+        
+        selectedTeamMembers.push(value);
+        renderTeamMemberTags();
+        input.value = '';
+    }
+}
+
+// 팀장 태그 렌더링
+function renderTeamLeaderTag() {
+    const container = document.getElementById('teamLeaderTag');
+    container.innerHTML = '';
+    
+    if (!selectedTeamLeader) return;
+    
+    const tag = document.createElement('span');
+    tag.className = 'student-tag';
+    tag.innerHTML = `
+        ${selectedTeamLeader}
+        <span class="remove-tag" onclick="removeTeamLeader()">&times;</span>
+    `;
+    container.appendChild(tag);
+}
+
+// 팀원 태그 렌더링
+function renderTeamMemberTags() {
+    const container = document.getElementById('teamMemberTags');
+    container.innerHTML = '';
+    
+    selectedTeamMembers.forEach((member, index) => {
+        const tag = document.createElement('span');
+        tag.className = 'student-tag';
+        tag.innerHTML = `
+            ${member}
+            <span class="remove-tag" onclick="removeTeamMember(${index})">&times;</span>
+        `;
+        container.appendChild(tag);
+    });
+}
+
+// 팀장 제거
+function removeTeamLeader() {
+    selectedTeamLeader = '';
+    renderTeamLeaderTag();
+}
+
+// 팀원 제거
+function removeTeamMember(index) {
+    selectedTeamMembers.splice(index, 1);
+    renderTeamMemberTags();
+}
+
+// 팀 추가
+function addTeam() {
+    if (!selectedTeamLeader) {
+        alert('팀장을 선택해주세요.');
+        return;
+    }
+    
+    if (selectedTeamMembers.length === 0) {
+        alert('최소 1명의 팀원을 추가해주세요.');
+        return;
+    }
+    
+    const reason = document.getElementById('teamReason').value.trim();
+    
+    const newTeam = {
+        id: Date.now(),
+        leader: selectedTeamLeader,
+        members: [...selectedTeamMembers],
+        reason: reason || '(사유 없음)'
+    };
+    
+    separationTeams.push(newTeam);
+    saveTeamData();
+    
+    // 입력 초기화
+    selectedTeamLeader = '';
+    selectedTeamMembers = [];
+    document.getElementById('teamLeaderInput').value = '';
+    document.getElementById('teamMemberInput').value = '';
+    document.getElementById('teamReason').value = '';
+    renderTeamLeaderTag();
+    renderTeamMemberTags();
+    
+    // 목록 다시 렌더링
+    renderTeamList();
+    
+}
+
+// 팀 삭제
+function deleteTeam(teamId) {
+    separationTeams = separationTeams.filter(t => t.id !== teamId);
+    saveTeamData();
+    renderTeamList();
+}
+
+// 팀 목록 렌더링
+function renderTeamList() {
+    const container = document.getElementById('teamList');
+    container.innerHTML = '';
+    
+    if (separationTeams.length === 0) {
+        return;
+    }
+    
+    separationTeams.forEach(team => {
+        const item = document.createElement('div');
+        item.className = 'group-item';
+        
+        // 위반 여부 체크
+        const violation = checkTeamViolation(team);
+        
+        item.innerHTML = `
+            <div class="group-info">
+                <div class="group-students">
+                    <strong style="color: #f44336;">팀장:</strong> ${team.leader} / 
+                    <strong style="color: #2196F3;">팀원:</strong> ${team.members.join(', ')}
+                </div>
+                <div class="group-reason">${team.reason}</div>
+                <div class="group-status ${violation.hasViolation ? 'violation' : 'ok'}">
+                    ${violation.hasViolation 
+                        ? `⚠️ 팀장과 같은 반: ${violation.details}` 
+                        : '✓ 팀장이 팀원들과 다른 반'}
+                </div>
+            </div>
+            <button class="delete-group" onclick="deleteTeam(${team.id})">&times;</button>
+        `;
+        
+        container.appendChild(item);
+    });
+}
+
+// 팀 위반 체크
+function checkTeamViolation(team) {
+    const leaderClass = findStudentClass(team.leader);
+    if (!leaderClass) {
+        return { hasViolation: false, details: '' };
+    }
+    
+    const violations = [];
+    team.members.forEach(member => {
+        const memberClass = findStudentClass(member);
+        if (memberClass === leaderClass) {
+            const [, classNum] = memberClass.split('-');
+            violations.push(member);
+        }
+    });
+    
+    return {
+        hasViolation: violations.length > 0,
+        details: violations.join(', ')
+    };
+}
+
+
+
+// 모달 열기
+function openRedFlagModal() {
+    loadRedFlagData();
+    loadTeamData(); // 
+    
+    selectedTagStudents = [];
+    selectedTeamLeader = ''; // 
+    selectedTeamMembers = []; // 
+    
+    // 입력 필드 초기화
+    document.getElementById('redFlagStudentInput').value = '';
+    document.getElementById('redFlagReason').value = '';
+    document.getElementById('selectedStudentTags').innerHTML = '';
+    
+    // 팀 입력 초기화
+    document.getElementById('teamLeaderInput').value = '';
+    document.getElementById('teamMemberInput').value = '';
+    document.getElementById('teamReason').value = '';
+    document.getElementById('teamLeaderTag').innerHTML = '';
+    document.getElementById('teamMemberTags').innerHTML = '';
+    
+    // 학생 자동완성 목록 업데이트
+    updateAllStudentsList();
+    
+    // 그룹 목록 렌더링
+    renderRedFlagGroups();
+    
+    // 팀 목록 렌더링
+    renderTeamList();
+    
+    // 기본 탭을 그룹으로 설정
+    switchTab('group');
+    
+    document.getElementById('redFlagModal').style.display = 'flex';
+}
+
+
+// 모달 닫기
+function closeRedFlagModal() {
+    document.getElementById('redFlagModal').style.display = 'none';
+    selectedTagStudents = [];
+    
+    // 통계 테이블 업데이트 (위반 표시 반영)
+    renderStatistics();
+}
+
+// 모달 바깥 영역 클릭 시 닫기
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('redFlagModal');
+    if (e.target === modal) {
+        closeRedFlagModal();
+    }
+});
+
+// 전체 학생 목록으로 자동완성 datalist 업데이트
+function updateAllStudentsList() {
+    const datalist = document.getElementById('allStudentsList');
+    datalist.innerHTML = '';
+    
+    // 모든 학생 수집
+    const allStudents = [];
+    const nameCount = {};  // 동명이인 체크용
+    
+    Object.keys(classData).forEach(cls => {
+        if (cls === 'history' || cls === 'undefined') return;
+        
+        const students = classData[cls] || [];
+        students.forEach(student => {
+            const name = student.성명;
+            
+            // 동명이인 카운트
+            if (!nameCount[name]) {
+                nameCount[name] = [];
+            }
+            nameCount[name].push({
+                name: name,
+                birthdate: student.생년월일 || '',
+                gender: student.성별 || '',
+                class: cls
+            });
+            
+            allStudents.push({
+                name: name,
+                birthdate: student.생년월일 || '',
+                gender: student.성별 || '',
+                class: cls
+            });
+        });
+    });
+    
+    // datalist 옵션 생성
+    allStudents.forEach(student => {
+        const option = document.createElement('option');
+        
+        // 동명이인인 경우 (월일, 성별) 추가
+        if (nameCount[student.name].length > 1) {
+            // 생년월일에서 월일만 추출 (예: 2011.07.23. -> 0723)
+            const monthDay = extractMonthDay(student.birthdate);
+            option.value = `${student.name}(${monthDay}, ${student.gender})`;
+        } else {
+            option.value = student.name;
+        }
+        
+        datalist.appendChild(option);
+    });
+}
+
+// 생년월일에서 월일 추출 (예: "2011.07.23." -> "0723")
+function extractMonthDay(birthdate) {
+    if (!birthdate) return '????';
+    
+    // "2011.07.23." 형식에서 월, 일 추출
+    const match = birthdate.match(/\d{4}\.(\d{2})\.(\d{2})/);
+    if (match) {
+        return match[1] + match[2];  // "0723"
+    }
+    return '????';
+}
+
+// 학생 입력 키 이벤트 (Enter로 태그 추가)
+function handleStudentInputKeydown(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        
+        const input = document.getElementById('redFlagStudentInput');
+        const value = input.value.trim();
+        
+        if (!value) return;
+        
+        // 이미 추가된 학생인지 확인
+        if (selectedTagStudents.includes(value)) {
+            alert('이미 추가된 학생입니다.');
+            input.value = '';
+            return;
+        }
+        
+        // 유효한 학생인지 확인 (자동완성 목록에 있는지)
+        const isValid = validateStudentName(value);
+        if (!isValid) {
+            alert('학생 목록에 없는 이름입니다. 정확한 이름을 입력해주세요.');
+            return;
+        }
+        
+        // 태그 추가
+        selectedTagStudents.push(value);
+        renderSelectedTags();
+        
+        input.value = '';
+        input.focus();
+    }
+}
+
+// 학생 이름 유효성 검사
+function validateStudentName(inputValue) {
+    // 모든 학생 순회하면서 매칭 확인
+    let found = false;
+    
+    Object.keys(classData).forEach(cls => {
+        if (cls === 'history' || cls === 'undefined') return;
+        
+        const students = classData[cls] || [];
+        students.forEach(student => {
+            const name = student.성명;
+            const monthDay = extractMonthDay(student.생년월일);
+            
+            // 정확히 일치하거나, 동명이인 형식으로 일치
+            if (inputValue === name || 
+                inputValue === `${name}(${monthDay}, ${student.성별})`) {
+                found = true;
+            }
+        });
+    });
+    
+    return found;
+}
+
+// 선택된 학생 태그 렌더링
+function renderSelectedTags() {
+    const container = document.getElementById('selectedStudentTags');
+    container.innerHTML = '';
+    
+    selectedTagStudents.forEach((student, index) => {
+        const tag = document.createElement('span');
+        tag.className = 'student-tag';
+        tag.innerHTML = `
+            ${student}
+            <span class="remove-tag" data-index="${index}">&times;</span>
+        `;
+        
+        // 삭제 버튼 이벤트
+        tag.querySelector('.remove-tag').addEventListener('click', () => {
+            selectedTagStudents.splice(index, 1);
+            renderSelectedTags();
+        });
+        
+        container.appendChild(tag);
+    });
+}
+
+// 그룹 추가
+function addSeparationGroup() {
+    if (selectedTagStudents.length < 2) {
+        alert('최소 2명 이상의 학생을 선택해야 합니다.');
+        return;
+    }
+    
+    const reason = document.getElementById('redFlagReason').value.trim();
+    
+    const newGroup = {
+        id: Date.now(),  // 고유 ID
+        students: [...selectedTagStudents],
+        reason: reason || '(사유 없음)'
+    };
+    
+    separationGroups.push(newGroup);
+    saveRedFlagData();
+    
+    // 입력 초기화
+    selectedTagStudents = [];
+    document.getElementById('redFlagStudentInput').value = '';
+    document.getElementById('redFlagReason').value = '';
+    document.getElementById('selectedStudentTags').innerHTML = '';
+    
+    // 목록 다시 렌더링
+    renderRedFlagGroups();
+    
+}
+
+// 그룹 삭제
+function deleteSeparationGroup(groupId) {
+    separationGroups = separationGroups.filter(g => g.id !== groupId);
+    saveRedFlagData();
+    renderRedFlagGroups();
+}
+
+// 그룹 목록 렌더링
+function renderRedFlagGroups() {
+    const container = document.getElementById('redFlagGroupList');
+    container.innerHTML = '';
+    
+    if (separationGroups.length === 0) {
+        return;  // CSS :empty 스타일이 적용됨
+    }
+    
+    separationGroups.forEach(group => {
+        const item = document.createElement('div');
+        item.className = 'group-item';
+        
+        // 위반 여부 체크
+        const violation = checkGroupViolation(group);
+        
+        item.innerHTML = `
+            <div class="group-info">
+                <div class="group-students">${group.students.join(' ↔ ')}</div>
+                <div class="group-reason">${group.reason}</div>
+                <div class="group-status ${violation.hasViolation ? 'violation' : 'ok'}">
+                    ${violation.hasViolation 
+                        ? `⚠️ 같은 반: ${violation.details}` 
+                        : '✓ 모두 다른 반'}
+                </div>
+            </div>
+            <button class="delete-group" data-id="${group.id}">&times;</button>
+        `;
+        
+        // 삭제 버튼 이벤트
+        item.querySelector('.delete-group').addEventListener('click', () => {
+            deleteSeparationGroup(group.id);
+        });
+        
+        container.appendChild(item);
+    });
+}
+
+// 그룹 내 위반 여부 체크 (같은 반에 있는 학생이 있는지)
+function checkGroupViolation(group) {
+    // 각 학생이 어느 반에 있는지 찾기
+    const studentClasses = {};
+    
+    group.students.forEach(studentInput => {
+        const classKey = findStudentClass(studentInput);
+        if (classKey) {
+            studentClasses[studentInput] = classKey;
+        }
+    });
+    
+    // 같은 반에 있는 학생 쌍 찾기
+    const violations = [];
+    const students = Object.keys(studentClasses);
+    
+    for (let i = 0; i < students.length; i++) {
+        for (let j = i + 1; j < students.length; j++) {
+            if (studentClasses[students[i]] === studentClasses[students[j]]) {
+                const [, classNum] = studentClasses[students[i]].split('-');
+                violations.push(`${classNum}반`);
+            }
+        }
+    }
+    
+    return {
+        hasViolation: violations.length > 0,
+        details: [...new Set(violations)].join(', ')
+    };
+}
+
+// 학생 이름으로 현재 반 찾기
+function findStudentClass(studentInput) {
+    // 이름에서 기본 이름 추출 (동명이인 형식 처리)
+    const nameMatch = studentInput.match(/^(.+?)(?:\(|$)/);
+    const baseName = nameMatch ? nameMatch[1] : studentInput;
+    
+    // 동명이인 형식인 경우 월일, 성별도 추출
+    const detailMatch = studentInput.match(/\((\d{4}), (남|여)\)/);
+    
+    let foundClass = null;
+    
+    Object.keys(classData).forEach(cls => {
+        if (cls === 'history' || cls === 'undefined') return;
+        
+        const students = classData[cls] || [];
+        students.forEach(student => {
+            if (student.성명 === baseName) {
+                // 동명이인 형식이면 추가 검증
+                if (detailMatch) {
+                    const monthDay = extractMonthDay(student.생년월일);
+                    if (monthDay === detailMatch[1] && student.성별 === detailMatch[2]) {
+                        foundClass = cls;
+                    }
+                } else {
+                    foundClass = cls;
+                }
+            }
+        });
+    });
+    
+    return foundClass;
+}
+
+// 반별 위반 개수 계산
+function calculateClassViolations() {
+    const violations = {};  // { "3-1": 2, "3-2": 0, ... }
+    
+    // 모든 반 초기화
+    Object.keys(classData).forEach(cls => {
+        if (cls === 'history' || cls === 'undefined') return;
+        violations[cls] = 0;
+    });
+    
+    // 각 그룹별로 위반 체크
+    separationGroups.forEach(group => {
+        // 그룹 내 학생들이 어느 반에 있는지 매핑
+        const studentClassMap = {};  // { "김철수": "3-1", "이영희": "3-1", ... }
+        
+        group.students.forEach(studentInput => {
+            const cls = findStudentClass(studentInput);
+            if (cls) {
+                studentClassMap[studentInput] = cls;
+            }
+        });
+        
+        // 같은 반에 있는 쌍 찾기 → 해당 반의 위반 카운트 증가
+        const students = Object.keys(studentClassMap);
+        
+        for (let i = 0; i < students.length; i++) {
+            for (let j = i + 1; j < students.length; j++) {
+                const class1 = studentClassMap[students[i]];
+                const class2 = studentClassMap[students[j]];
+                
+                if (class1 === class2) {
+                    // 같은 반에 있음 = 위반!
+                    violations[class1] = (violations[class1] || 0) + 1;
+                }
+            }
+        }
+    });
+
+    // 팀 위반 체크 추가
+    separationTeams.forEach(team => {
+        const leaderClass = findStudentClass(team.leader);
+        if (!leaderClass) return;
+        
+        team.members.forEach(member => {
+            const memberClass = findStudentClass(member);
+            if (memberClass === leaderClass) {
+                violations[leaderClass] = (violations[leaderClass] || 0) + 1;
+            }
+        });
+    });
+    
+    return violations;
+}
+
+
+// 위반 상세 정보 생성
+function getViolationDetails(cls) {
+    const details = [];
+    
+    // 그룹 위반 체크
+    separationGroups.forEach(group => {
+        const studentClassMap = {};
+        group.students.forEach(studentInput => {
+            const studentCls = findStudentClass(studentInput);
+            if (studentCls) {
+                studentClassMap[studentInput] = studentCls;
+            }
+        });
+        
+        const students = Object.keys(studentClassMap);
+        const sameClassStudents = students.filter(s => studentClassMap[s] === cls);
+        
+        if (sameClassStudents.length >= 2) {
+            details.push(`[그룹] ${sameClassStudents.join(' ↔ ')}`);
+        }
+    });
+    
+    // 팀 위반 체크
+    separationTeams.forEach(team => {
+        const leaderClass = findStudentClass(team.leader);
+        if (leaderClass !== cls) return;
+        
+        const violatingMembers = [];
+        team.members.forEach(member => {
+            const memberClass = findStudentClass(member);
+            if (memberClass === cls) {
+                violatingMembers.push(member);
+            }
+        });
+        
+        if (violatingMembers.length > 0) {
+            details.push(`[팀] 팀장 ${team.leader} ↔ ${violatingMembers.join(', ')}`);
+        }
+    });
+    
+    return details.length > 0 ? details.join('\n') : '위반 없음';
+}
+
+// 툴팁 표시
+function showViolationTooltip(event, text) {
+    // 기존 툴팁 제거
+    hideViolationTooltip();
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'violation-tooltip';
+    tooltip.id = 'violationTooltip';
+    tooltip.textContent = text;
+    
+    document.body.appendChild(tooltip);
+    
+    // 위치 계산 (fixed 포지션 사용)
+    const rect = event.target.getBoundingClientRect();
+    tooltip.style.position = 'fixed';  // absolute → fixed로 변경
+    tooltip.style.left = rect.left + 'px';
+    tooltip.style.top = (rect.bottom + 5) + 'px';
+    
+    // 화면 밖으로 나가는 것 방지
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // 오른쪽으로 넘치면 왼쪽으로 조정
+    if (tooltipRect.right > viewportWidth - 10) {
+        tooltip.style.left = (viewportWidth - tooltipRect.width - 10) + 'px';
+    }
+    
+    // 아래로 넘치면 위로 표시
+    if (tooltipRect.bottom > viewportHeight - 10) {
+        tooltip.style.top = (rect.top - tooltipRect.height - 5) + 'px';
+        
+        // 화살표 위치도 변경 (아래에서 위로)
+        tooltip.classList.add('tooltip-above');
+    }
+}
+
+// 툴팁 숨기기
+function hideViolationTooltip() {
+    const tooltip = document.getElementById('violationTooltip');
+    if (tooltip) {
+        tooltip.remove();
+    }
 }

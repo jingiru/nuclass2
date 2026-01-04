@@ -28,6 +28,7 @@
             <h3>샘플 파일 다운로드</h3>
             <p>원하는 형식을 선택하세요</p>
 
+            <!-- 모달 팝업 - 샘플 다운로드 -->
             <div class="modal-buttons">
                 <div class="sample-row">
                     <span class="sample-name">[PDF] 학년 문구 없음</span>
@@ -44,6 +45,115 @@
             <button class="modal-close-btn" onclick="closeSampleModal()">닫기</button>
         </div>
     </div>
+
+    <!-- 빨간불 모달 -->
+    <div id="redFlagModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3>🚨 떨어져야 하는 학생 관리</h3>
+            
+            <!-- 탭 추가 -->
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee;">
+                <button id="groupTab" class="tab-btn active" onclick="switchTab('group')">
+                    그룹 방식 (서로 떨어지기)
+                </button>
+                <button id="teamTab" class="tab-btn" onclick="switchTab('team')">
+                    팀 방식 (1명 vs N명)
+                </button>
+            </div>
+            
+            <!-- 기존 그룹 입력 영역 -->
+            <div id="groupTabContent" class="tab-content">
+                <div class="redflag-input-area">
+                    <p style="color: #666; font-size: 13px; margin-bottom: 10px;">
+                        같은 반이 되면 안 되는 학생들을 그룹으로 추가하세요.
+                    </p>
+                    
+                    <!-- 학생 입력 -->
+                    <div class="student-input-wrapper">
+                        <input type="text" id="redFlagStudentInput" 
+                               list="allStudentsList" 
+                               placeholder="학생 이름 입력 후 Enter"
+                               autocomplete="off">
+                        <datalist id="allStudentsList"></datalist>
+                    </div>
+                    
+                    <!-- 선택된 학생 태그 표시 -->
+                    <div id="selectedStudentTags" class="student-tags"></div>
+                    
+                    <!-- 사유 입력 -->
+                    <input type="text" id="redFlagReason" 
+                           placeholder="사유 (선택사항)" 
+                           style="width: 100%; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    
+                    <!-- 추가 버튼 -->
+                    <button id="addRedFlagGroup" class="btn btn-danger" style="width: 100%; margin-top: 10px;">
+                        그룹 추가
+                    </button>
+                </div>
+                
+                <!-- 구분선 -->
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+                
+                <!-- 기존 그룹 목록 -->
+                <div class="redflag-list-area">
+                    <div id="redFlagGroupList" class="group-list"></div>
+                </div>
+            </div>
+            
+            <!-- 새로운 팀 입력 영역 -->
+            <div id="teamTabContent" class="tab-content" style="display: none;">
+                <div class="redflag-input-area">
+                    <p style="color: #666; font-size: 13px; margin-bottom: 10px;">
+                        <strong>팀장 1명</strong>은 <strong>팀원들</strong>과 다른 반이어야 합니다.<br>
+                        (팀원들끼리는 같은 반 가능)
+                    </p>
+                    
+                    <!-- 팀장 입력 -->
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px;">팀장 (1명)</label>
+                    <div class="student-input-wrapper">
+                        <input type="text" id="teamLeaderInput" 
+                               list="allStudentsList" 
+                               placeholder="팀장 이름 입력"
+                               autocomplete="off">
+                    </div>
+                    <div id="teamLeaderTag" class="student-tags" style="margin-bottom: 15px;"></div>
+                    
+                    <!-- 팀원 입력 -->
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px;">팀원들 (여러 명)</label>
+                    <div class="student-input-wrapper">
+                        <input type="text" id="teamMemberInput" 
+                               list="allStudentsList" 
+                               placeholder="팀원 이름 입력 후 Enter"
+                               autocomplete="off">
+                    </div>
+                    <div id="teamMemberTags" class="student-tags"></div>
+                    
+                    <!-- 사유 입력 -->
+                    <input type="text" id="teamReason" 
+                           placeholder="사유 (선택사항)" 
+                           style="width: 100%; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    
+                    <!-- 추가 버튼 -->
+                    <button id="addTeam" class="btn btn-danger" style="width: 100%; margin-top: 10px;">
+                        팀 추가
+                    </button>
+                </div>
+                
+                <!-- 구분선 -->
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+                
+                <!-- 팀 목록 -->
+                <div class="redflag-list-area">
+                    <div id="teamList" class="group-list"></div>
+                </div>
+            </div>
+            
+            <button class="modal-close-btn" onclick="closeRedFlagModal()" style="margin-top: 20px;">
+                닫기
+            </button>
+        </div>
+    </div>
+
 
     <!-- ========== 로그인 화면 ========== -->
     <div id="loginScreen" class="screen">
@@ -144,6 +254,9 @@
                                 <input type="checkbox" id="showSpecial" before>
                                 <span>메모</span>
                             </label>
+                            <button id="redFlagButton" class="btn btn-redflag" style="font-size: 13px;" >
+                                🚨
+                            </button>
                         </div>
                     </div>
 
