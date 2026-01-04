@@ -78,8 +78,8 @@ h2 {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 
 /* ========================================
@@ -89,8 +89,8 @@ h2 {
     display: inline-block;
     color: white;
     text-align: center;
-    padding: 10px 13px;
-    font-size: 14px;
+    padding: 9px 11px;
+    font-size: 13px;
     border: none;
     border-radius: 5px;
     cursor: pointer;

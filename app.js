@@ -1624,6 +1624,34 @@ function downloadPdf() {
 }
 
 
+/**
+ * 이름 마스킹 함수
+ * - 한글 이름: 두번째 위치 마스킹 (4글자 이상은 중간 전체 마스킹)
+ * - 영어 이름(공백 포함): 각 단어별 앞 2글자만 표시 (2글자면 1글자만)
+ */
+function maskName(name) {
+    if (!name) return '';
+    
+    // 공백이 있으면 영어 이름으로 판단
+    if (name.includes(' ')) {
+        return name.split(' ').map(word => {
+            if (word.length <= 1) return word;
+            if (word.length === 2) return word[0] + '*';
+            // 3글자 이상: 앞 2글자 + 나머지 *
+            return word.slice(0, 2) + '*'.repeat(word.length - 2);
+        }).join(' ');
+    }
+    
+    // 한글 이름 처리
+    const len = name.length;
+    if (len <= 1) return name;
+    if (len === 2) return name[0] + '*';
+    if (len === 3) return name[0] + '*' + name[2];
+    // 4글자 이상: 첫글자 + ** + 마지막글자
+    return name[0] + '*'.repeat(len - 2) + name[len - 1];
+}
+
+
 /* ========================================
    PDF 다운로드 - 공지용 (jsPDF)
    - 통계, 변경 이력 제외
@@ -1696,12 +1724,12 @@ function downloadPdfPublic() {
         doc.text(`${currentSession.schoolName} ${year}학년도 ${nextGradeNum}학년 ${classNum}반`, 14, classY);
         classY += 7;
 
-        // 테이블 데이터 (기준성적 제외!)
+        // 테이블 데이터 (기준성적 제외, 이름 마스킹 적용!)
         const tableData = students.map(s => [
             grade,
             classNum,
             s.번호,
-            s.성명,
+            maskName(s.성명),  // ← 마스킹 적용
             s.생년월일,
             s.성별,
             s.이전학적학년 || '',
@@ -1758,6 +1786,7 @@ function downloadPdfPublic() {
 
     doc.save(`${currentSession.schoolName}_${currentSession.grade}_반편성결과_공지용_${fileTimestamp}.pdf`);
 }
+
 
 
 /* ========================================
