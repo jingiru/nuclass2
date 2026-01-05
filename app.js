@@ -644,6 +644,8 @@ function handleDrop(e) {
     processPdfFile(file);
 }
 
+
+
 /* ========================================
    PDF 파싱 (PDF.js)
    ======================================== */
@@ -791,6 +793,10 @@ function parsePdfText(text) {
     return classes;
 }
 
+
+
+
+
 /* ========================================
    렌더링: 반 목록
    ======================================== */
@@ -813,8 +819,9 @@ function renderClasses() {
         container.innerHTML = `
             <div class="empty-message" style="grid-column: 1 / -1;">
                 <div class="icon">📄</div>
-                <p>데이터가 없습니다.</p>
                 <p>PDF 파일을 업로드해주세요.</p>
+                <p>나이스 - 학적 - 진급대상자 반편성관리 - 일괄반편성 작업 후 => <br> 반편성결과조회 - 반편성조회(배정반기준) - 전체반 옵션 선택 - 출력 - PDF 저장</p>
+                <p><strong>엑셀 등을 변환한 PDF 파일은 호환되지 않습니다</strong></p>
                 <p>(여기에 파일 드래그&드롭 가능)</p>
             </div>
         `;
