@@ -1972,7 +1972,7 @@ function downloadExcel() {
                 '성명': student.성명,
                 '이전주야과정구분': '주간',
                 '이전학년': student.이전학적학년 ? `${student.이전학적학년}학년` : '',
-                '이전반': String(student.이전학적반 || '').padStart(2, '0'),
+                '이전반': String(student.이전학적반 || ''),
                 '이전번호': student.이전학적번호 || '',
                 '진급주야과정구분': '주간',
                 '진급학년': `${grade}학년`,
