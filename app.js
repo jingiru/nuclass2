@@ -910,8 +910,14 @@ function renderUploadSplitScreen(container) {
                     반편성자료생성 - 자료내리기 - 재학생 - 내리기
                 </p>
                 <p style="color:#999; font-size:12px;">
-                    상단의 <b>엑셀 파일 선택</b> 버튼을 이용하세요.
+                    아래 <b>파일 선택</b> 버튼을 이용하거나 드래그&드롭 하세요<br>
+                    <strong>엑셀 파일만 업로드 가능합니다</strong>
                 </p>
+
+                <!-- ✅ 하단 버튼(엑셀) -->
+                <div class="upload-actions">
+                    <label for="excelUpload" class="btn btn-blue">파일 선택</label>
+                </div>
             </div>
 
             <div class="upload-panel upload-pdf" id="pdfDropZone">
@@ -922,15 +928,20 @@ function renderUploadSplitScreen(container) {
                     반편성결과조회 - 반편성조회(배정반기준) - 전체반 옵션 선택 - 출력 - PDF 저장
                 </p>
                 <p style="color:#999; font-size:12px;">
-                    <strong>엑셀 등을 변환한 PDF 파일은 호환되지 않습니다</strong><br>
-                    (여기에 PDF 드래그&드롭 가능)
+                    아래 <b>파일 선택</b> 버튼을 이용하거나 드래그&드롭 하세요<br>
+                    <strong>엑셀 등을 변환한 PDF 파일은 호환되지 않습니다</strong>
                 </p>
+
+                <!-- ✅ 하단 버튼(PDF) -->
+                <div class="upload-actions">
+                    <label for="pdfUpload" class="btn btn-orange">파일 선택</label>
+                </div>
             </div>
         </div>
     `;
 
     attachSplitDropZones();
-    clearStatisticsUI(); 
+    clearStatisticsUI();
 
     // 업로드 전에는 기능 버튼 잠금
     document.getElementById('sortByNameButton').disabled = true;
@@ -940,6 +951,7 @@ function renderUploadSplitScreen(container) {
     document.getElementById('backupButton').disabled = true;
     document.getElementById('resetDataButton').disabled = false;
 }
+
 
 
 function renderClasses() {
