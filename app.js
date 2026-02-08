@@ -148,6 +148,52 @@ async function applySamplePdf(filename) {
 }
 
 
+// 샘플 Excel 바로 적용
+async function applySampleExcel(filename) {
+    // 모달 닫기
+    closeSampleModal();
+
+    // 로딩 표시
+    const container = document.getElementById('classesContainer');
+    container.innerHTML = `
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>샘플 엑셀을 불러오는 중입니다...</p>
+        </div>
+    `;
+
+    try {
+        // GitHub Pages에서 Excel 파일 가져오기
+        const response = await fetch(`./${filename}`);
+
+        if (!response.ok) {
+            throw new Error('파일을 불러올 수 없습니다.');
+        }
+
+        // Blob → File로 변환 (xlsx mime 지정)
+        const blob = await response.blob();
+        const file = new File(
+            [blob],
+            filename,
+            { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+        );
+
+        // 기존 Excel 처리 함수 호출
+        await processExcelFile(file);
+
+        // 업로드 화면/상태 갱신
+        renderClasses();
+        checkUploadsReadyAndNotify();
+
+    } catch (error) {
+        console.error('샘플 Excel 적용 오류:', error);
+        alert('샘플 파일을 불러오는 중 오류가 발생했습니다.');
+        renderClasses();
+    }
+}
+
+
+
 // 모달 바깥 영역 클릭 시 닫기
 document.addEventListener('click', function(e) {
     const modal = document.getElementById('sampleModal');
@@ -672,7 +718,7 @@ async function processPdfFile(file) {
         history = [];
         changedStudents.clear();
         movedStudents.clear();
-        
+
         pdfLoaded = true;
         pdfUploadedAt = new Date();
         
