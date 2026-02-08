@@ -12,6 +12,8 @@ let selectedTagStudents = [];   // 모달에서 현재 선택 중인 학생들 (
 let separationTeams = [];       // 팀 기반 분리
 let excelRoster = null;   // 업로드된 엑셀 원장(학번 포함)
 let excelLoaded = false;  // 엑셀 업로드 여부
+let pdfLoaded = false;        // ✅ PDF 업로드/분석 완료 여부
+let uploadsReadyNotified = false;
 
 
 // 현재 로그인 정보
@@ -589,6 +591,14 @@ function loadClassData() {
         movedStudents = new Set();
     }
 
+
+    // classData에 반 데이터가 있으면 PDF는 이미 확보된 것으로 간주
+    const hasClassData = Object.keys(classData).some(k => k !== 'history' && k !== 'undefined');
+    pdfLoaded = hasClassData;
+
+    // (엑셀은 현재 코드에서 excelRoster를 저장 안 하므로, 여기서는 일단 "엑셀 없이도 화면은 보이게" 하려면 아래처럼 처리)
+    if (pdfLoaded) excelLoaded = true;
+
     // 빨간불 데이터 로드
     loadRedFlagData();
 
@@ -599,6 +609,18 @@ function loadClassData() {
     renderHistory();
 }
 
+
+function checkUploadsReadyAndNotify() {
+    if (excelLoaded && pdfLoaded) {
+        // 업로드 화면에서 반편성 화면으로 즉시 전환
+        renderClasses();
+
+        if (!uploadsReadyNotified) {
+            uploadsReadyNotified = true;
+            alert('업로드가 완료되었습니다! 이제 반 배정을 진행할 수 있습니다.');
+        }
+    }
+}
 
 
 /* ========================================
@@ -653,7 +675,8 @@ async function processPdfFile(file) {
         renderClasses();
         renderHistory();
         
-        alert('PDF 업로드 및 분석이 완료되었습니다!');
+        pdfLoaded = true;
+        checkUploadsReadyAndNotify();
         
     } catch (error) {
         console.error('PDF 파싱 오류:', error);
@@ -661,6 +684,7 @@ async function processPdfFile(file) {
         renderClasses();
     }
 }
+
 
 
 async function handleExcelUpload(event) {
@@ -679,7 +703,7 @@ async function handleExcelUpload(event) {
 
     try {
         await processExcelFile(file);
-        alert('엑셀 업로드가 완료되었습니다!');
+        checkUploadsReadyAndNotify();
     } catch (e) {
         console.error('엑셀 처리 오류:', e);
         alert('엑셀 파일 처리 중 오류가 발생했습니다.');
@@ -812,7 +836,7 @@ function attachSplitDropZones() {
             accept: (file) => file && (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')),
             onDrop: async (file) => {
                 await processExcelFile(file);
-                alert('엑셀 업로드가 완료되었습니다!');
+                checkUploadsReadyAndNotify(); 
             }
         });
     }
@@ -875,13 +899,62 @@ function bindDropZone(zoneEl, { accept, onDrop }) {
     });
 }
 
+function renderUploadSplitScreen(container) {
+    container.innerHTML = `
+        <div class="empty-message split-upload" style="grid-column: 1 / -1;">
+            <div class="upload-panel upload-excel" id="excelDropZone">
+                <div class="icon">📊</div>
+                <p><strong>엑셀 파일을 업로드해주세요.</strong></p>
+                <p style="color:#666; font-size:13px; line-height:1.5;">
+                    학적 - 진급대상자 반편성관리 - 일괄반편성 작업 후<br>
+                    반편성자료생성 - 자료내리기 - 재학생 - 내리기
+                </p>
+                <p style="color:#999; font-size:12px;">
+                    상단의 <b>엑셀 파일 선택</b> 버튼을 이용하세요.
+                </p>
+            </div>
+
+            <div class="upload-panel upload-pdf" id="pdfDropZone">
+                <div class="icon">📄</div>
+                <p><strong>PDF 파일을 업로드해주세요.</strong></p>
+                <p style="color:#666; font-size:13px; line-height:1.5;">
+                    나이스 - 학적 - 진급대상자 반편성관리 - 일괄반편성 작업 후<br>
+                    반편성결과조회 - 반편성조회(배정반기준) - 전체반 옵션 선택 - 출력 - PDF 저장
+                </p>
+                <p style="color:#999; font-size:12px;">
+                    <strong>엑셀 등을 변환한 PDF 파일은 호환되지 않습니다</strong><br>
+                    (여기에 PDF 드래그&드롭 가능)
+                </p>
+            </div>
+        </div>
+    `;
+
+    attachSplitDropZones();
+    clearStatisticsUI(); 
+
+    // 업로드 전에는 기능 버튼 잠금
+    document.getElementById('sortByNameButton').disabled = true;
+    document.getElementById('downloadPdfButton').disabled = true;
+    document.getElementById('downloadPdfPublicButton').disabled = true;
+    document.getElementById('downloadExcelButton').disabled = true;
+    document.getElementById('backupButton').disabled = true;
+    document.getElementById('resetDataButton').disabled = false;
+}
+
 
 function renderClasses() {
     const container = document.getElementById('classesContainer');
+
+    // ✅ 둘 다 업로드 전: 업로드 화면만
+    if (!(excelLoaded && pdfLoaded)) {
+        renderUploadSplitScreen(container);
+        return;
+    }
+
+    // ✅ 여기부터는 둘 다 업로드 된 상태
     container.innerHTML = '';
-    
     const validClasses = getValidClasses();
-    
+
     // 데이터 유무에 따라 버튼 활성화/비활성화
     const hasData = validClasses.length > 0;
     document.getElementById('sortByNameButton').disabled = !hasData;
@@ -890,62 +963,26 @@ function renderClasses() {
     document.getElementById('downloadExcelButton').disabled = !hasData;
     document.getElementById('backupButton').disabled = !hasData;
     document.getElementById('resetDataButton').disabled = !hasData;
-    
-    if (validClasses.length === 0) {
-        container.innerHTML = `
-            <div class="empty-message split-upload" style="grid-column: 1 / -1;">
-                
-                <!-- 왼쪽: 엑셀 업로드 안내 -->
-                <div class="upload-panel upload-excel" id="excelDropZone">
-                    <div class="icon">📊</div>
-                    <p><strong>엑셀 파일을 업로드해주세요.</strong></p>
-                    <p style="color:#666; font-size:13px; line-height:1.5;">
-                        학적 - 진급대상자 반편성관리 - 일괄반편성 작업 후<br>
-                        반편성자료생성 - 자료내리기 - 재학생 - 내리기
-                    </p>
-                    <p style="color:#999; font-size:12px;">
-                        상단의 <b>엑셀 파일 선택</b> 버튼을 이용하세요.
-                    </p>
-                </div>
 
-                <!-- 오른쪽: PDF 업로드 안내 -->
-                <div class="upload-panel upload-pdf" id="pdfDropZone">
-                    <div class="icon">📄</div>
-                    <p><strong>PDF 파일을 업로드해주세요.</strong></p>
-                    <p style="color:#666; font-size:13px; line-height:1.5;">
-                        나이스 - 학적 - 진급대상자 반편성관리 - 일괄반편성 작업 후<br>
-                        반편성결과조회 - 반편성조회(배정반기준) - 전체반 옵션 선택 - 출력 - PDF 저장
-                    </p>
-                    <p style="color:#999; font-size:12px;">
-                        <strong>엑셀 등을 변환한 PDF 파일은 호환되지 않습니다</strong><br>
-                        (여기에 PDF 드래그&드롭 가능)
-                    </p>
-                </div>
-
-            </div>
-        `;
-        attachSplitDropZones();
-        renderStatistics();
+    // ✅ 둘 다 업로드는 됐지만 validClasses가 0이면 (방어)
+    if (!hasData) {
+        clearStatisticsUI();
         return;
     }
 
-    
-    // 반 정렬 (학년-반 순)
-    const sortedClasses = sortClasses(validClasses); 
-    
+    const sortedClasses = sortClasses(validClasses);
+
     sortedClasses.forEach(cls => {
-        const { grade, classNum: classNumber } = parseClassKey(cls); 
+        const { classNum: classNumber } = parseClassKey(cls);
         const students = classData[cls];
-        
+
         const classBox = document.createElement('div');
         classBox.className = 'class-box';
-        
-        // 반 제목
+
         const title = document.createElement('h3');
         title.textContent = `${classNumber}반`;
         classBox.appendChild(title);
-        
-        // 학생 테이블
+
         const table = document.createElement('table');
         table.className = 'student-table';
         table.innerHTML = `
@@ -967,23 +1004,19 @@ function renderClasses() {
             </thead>
             <tbody></tbody>
         `;
-        
+
         const tbody = table.querySelector('tbody');
-        
+
         students.forEach((student, index) => {
             const row = document.createElement('tr');
             row.className = 'student-row';
             row.dataset.class = cls;
             row.dataset.index = index;
-            
-            // 이전학적 정보
+
             const prevClass = student.이전학적반 || '';
-            
-            // 이전반 배경색 클래스
             const prevClassBgClass = prevClass ? `prev-class-${prevClass}` : '';
 
             const memoValue = student.특이사항 || '';
-            const memoEscaped = String(memoValue).replace(/"/g, '&quot;');
             row.innerHTML = `
                 <td>${student.번호}</td>
                 <td>${student.성명}</td>
@@ -994,44 +1027,29 @@ function renderClasses() {
                 <td class="${prevClassBgClass}" style="font-weight: bold;">${prevClass}</td>
                 <td>${student.이전학적번호 || ''}</td>
                 <td class="col-special">
-                    <input
-                      type="text"
-                      class="special-input"
-                      value="${memoValue.replace(/"/g, '&quot;')}"
-                    />
+                    <input type="text" class="special-input" value="${String(memoValue).replace(/"/g, '&quot;')}" />
                 </td>
-
             `;
 
             const input = row.querySelector('.special-input');
             if (input) {
-                // 입력 클릭 시 행 선택 토글 방지
                 input.addEventListener('click', (e) => e.stopPropagation());
                 input.addEventListener('keydown', (e) => e.stopPropagation());
-
-                // 입력 내용 저장 (간단 debounce)
                 input.addEventListener('input', () => {
                     student.특이사항 = input.value;
-                    scheduleSaveClassData(); // 아래 3단계에서 추가
+                    scheduleSaveClassData();
                 });
             }
-            
-            // 상태 표시
-            if (changedStudents.has(`${cls}-${student.성명}`)) {
-                row.classList.add('changed');
-            } else if (movedStudents.has(`${cls}-${student.성명}`)) {
-                row.classList.add('moved');
-            }
-            
-            // 클릭 이벤트
+
+            if (changedStudents.has(`${cls}-${student.성명}`)) row.classList.add('changed');
+            else if (movedStudents.has(`${cls}-${student.성명}`)) row.classList.add('moved');
+
             row.addEventListener('click', () => selectStudent(cls, index, row));
-            
             tbody.appendChild(row);
         });
-        
+
         classBox.appendChild(table);
-        
-        // 반 내 버튼
+
         const buttonsDiv = document.createElement('div');
         buttonsDiv.className = 'class-buttons';
         buttonsDiv.innerHTML = `
@@ -1039,29 +1057,41 @@ function renderClasses() {
             <button class="btn btn-purple btn-move" disabled>다른 반 이동</button>
             <button class="btn btn-gray btn-undo" disabled>되돌리기</button>
         `;
-        
+
         buttonsDiv.querySelector('.btn-swap').addEventListener('click', swapStudents);
         buttonsDiv.querySelector('.btn-move').addEventListener('click', moveStudents);
         buttonsDiv.querySelector('.btn-undo').addEventListener('click', undoLastAction);
-        
+
         classBox.appendChild(buttonsDiv);
         container.appendChild(classBox);
     });
-    
-    updateButtonState();
-    renderStatistics();
 
-    // 학생 테이블이 다시 그려진 뒤, 열 숨김/표시 및 그리드 즉시 재적용
+    updateButtonState();
+    renderStatistics();   
     applyViewOptions();
-    
-    // 되돌리기 버튼 상태 업데이트
     updateUndoButtonState();
 }
+
 
 /* ========================================
    렌더링: 통계 테이블
    ======================================== */
+
+function clearStatisticsUI() {
+    const thead = document.querySelector('#currentStats thead');
+    const tbody = document.querySelector('#currentStats tbody');
+    if (thead) thead.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
+}
+
 function renderStatistics() {
+
+    // ✅ 둘 다 업로드 전에는 통계 렌더링 금지
+    if (!(excelLoaded && pdfLoaded)) {
+        clearStatisticsUI();
+        return;
+    }
+
     const thead = document.querySelector('#currentStats thead');
     const tbody = document.querySelector('#currentStats tbody');
 
@@ -1492,6 +1522,10 @@ function resetData() {
     localStorage.removeItem(getRedFlagKey());
     localStorage.removeItem(getTeamKey());
     
+    excelLoaded = false;
+    pdfLoaded = false;
+    uploadsReadyNotified = false;
+
     renderClasses();
     renderHistory();
     alert('데이터가 초기화되었습니다.');
