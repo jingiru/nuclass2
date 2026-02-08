@@ -12,7 +12,9 @@ let selectedTagStudents = [];   // 모달에서 현재 선택 중인 학생들 (
 let separationTeams = [];       // 팀 기반 분리
 let excelRoster = null;   // 업로드된 엑셀 원장(학번 포함)
 let excelLoaded = false;  // 엑셀 업로드 여부
-let pdfLoaded = false;        // ✅ PDF 업로드/분석 완료 여부
+let excelUploadedAt = null;
+let pdfLoaded = false;        // PDF 업로드 여부
+let pdfUploadedAt = null;
 let uploadsReadyNotified = false;
 
 
@@ -671,11 +673,13 @@ async function processPdfFile(file) {
         changedStudents.clear();
         movedStudents.clear();
         
+        pdfLoaded = true;
+        pdfUploadedAt = new Date();
+        
         saveClassData();
         renderClasses();
         renderHistory();
         
-        pdfLoaded = true;
         checkUploadsReadyAndNotify();
         
     } catch (error) {
@@ -713,7 +717,6 @@ async function handleExcelUpload(event) {
 }
 
 async function processExcelFile(file) {
-    // SheetJS는 이미 index.html에서 로드되어 있음(XLSX)
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
 
@@ -726,8 +729,10 @@ async function processExcelFile(file) {
     // 일단 원장 저장 (다음 단계에서 매칭에 사용)
     excelRoster = rows;
     excelLoaded = true;
+    excelUploadedAt = new Date();
 
-    // (선택) 세션별 localStorage 저장까지는 다음 단계에서 안정적으로 붙이자
+    renderClasses();
+
 }
 
 
@@ -900,9 +905,19 @@ function bindDropZone(zoneEl, { accept, onDrop }) {
 }
 
 function renderUploadSplitScreen(container) {
+    const excelDone = excelLoaded;
+    const pdfDone = pdfLoaded;
+
+    const formatTime = (d) => {
+        if (!d) return '';
+        const hh = String(d.getHours()).padStart(2,'0');
+        const mm = String(d.getMinutes()).padStart(2,'0');
+        return `${hh}:${mm}`;
+    };
     container.innerHTML = `
         <div class="empty-message split-upload" style="grid-column: 1 / -1;">
-            <div class="upload-panel upload-excel" id="excelDropZone">
+            <div class="upload-panel upload-excel ${excelDone ? 'is-done' : ''}" id="excelDropZone">
+                ${excelDone ? `<div class="upload-badge">업로드 완료</div>` : ``}
                 <div class="icon">📊</div>
                 <p><strong>엑셀 파일을 업로드해주세요.</strong></p>
                 <p style="color:#666; font-size:13px; line-height:1.5;">
@@ -913,14 +928,16 @@ function renderUploadSplitScreen(container) {
                     아래 <b>파일 선택</b> 버튼을 이용하거나 드래그&드롭 하세요<br>
                     <strong>엑셀 파일만 업로드 가능합니다</strong>
                 </p>
-
-                <!-- ✅ 하단 버튼(엑셀) -->
+                ${excelDone && excelUploadedAt
+                  ? `<p class="upload-meta">마지막 업로드: ${formatTime(excelUploadedAt)}</p>`
+                  : ``}
                 <div class="upload-actions">
                     <label for="excelUpload" class="btn btn-blue">파일 선택</label>
                 </div>
             </div>
 
-            <div class="upload-panel upload-pdf" id="pdfDropZone">
+            <div class="upload-panel upload-pdf ${pdfDone ? 'is-done' : ''}" id="pdfDropZone">
+                ${pdfDone ? `<div class="upload-badge">업로드 완료</div>` : ``}
                 <div class="icon">📄</div>
                 <p><strong>PDF 파일을 업로드해주세요.</strong></p>
                 <p style="color:#666; font-size:13px; line-height:1.5;">
@@ -931,6 +948,9 @@ function renderUploadSplitScreen(container) {
                     아래 <b>파일 선택</b> 버튼을 이용하거나 드래그&드롭 하세요<br>
                     <strong>엑셀 등을 변환한 PDF 파일은 호환되지 않습니다</strong>
                 </p>
+                ${pdfDone && pdfUploadedAt
+                  ? `<p class="upload-meta">마지막 업로드: ${formatTime(pdfUploadedAt)}</p>`
+                  : ``}
 
                 <!-- ✅ 하단 버튼(PDF) -->
                 <div class="upload-actions">

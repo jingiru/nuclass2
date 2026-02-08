@@ -838,6 +838,33 @@ h2 {
   background: linear-gradient(180deg, rgba(255,152,0,0.10), rgba(255,255,255,1) 55%);
 }
 
+/* ✅ 업로드 완료 뱃지 */
+.upload-badge{
+  position:absolute;
+  top:14px;
+  right:14px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  background: rgba(0,0,0,.72);
+  color:#fff;
+}
+
+/* ✅ 완료 상태: 배경 톤 다운 + 테두리/그림자 살짝 변화 */
+.upload-panel.is-done{
+  filter: saturate(0.9) brightness(0.95);
+  opacity: 0.95;
+}
+
+/* 마지막 업로드 시간 텍스트 */
+.upload-meta{
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #777;
+}
+
+
 /* 모바일/좁은 화면: 세로 스택 */
 @media (max-width: 900px){
   .empty-message.split-upload{
