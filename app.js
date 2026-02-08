@@ -10,6 +10,9 @@ let undoStack = [];  // 되돌리기용 상태 저장 스택
 let separationGroups = [];      // 떨어져야 하는 학생 그룹들
 let selectedTagStudents = [];   // 모달에서 현재 선택 중인 학생들 (태그)
 let separationTeams = [];       // 팀 기반 분리
+let excelRoster = null;   // 업로드된 엑셀 원장(학번 포함)
+let excelLoaded = false;  // 엑셀 업로드 여부
+
 
 // 현재 로그인 정보
 let currentSession = {
@@ -229,6 +232,10 @@ function initEventListeners() {
     
     // PDF 업로드
     document.getElementById('pdfUpload').addEventListener('change', handlePdfUpload);
+
+    // 엑셀 업로드
+    document.getElementById('excelUpload').addEventListener('change', handleExcelUpload);
+
     
     // 버튼들
     document.getElementById('globalSwapButton').addEventListener('click', swapStudents);
@@ -247,14 +254,6 @@ function initEventListeners() {
         document.getElementById('jsonUpload').click();
     });
     document.getElementById('jsonUpload').addEventListener('change', restoreFromJson);
-
-    // 드래그 앤 드롭 이벤트 (맨 끝에 추가)
-    const dropZone = document.getElementById('dropZone');
-    
-    dropZone.addEventListener('dragenter', handleDragEnter);
-    dropZone.addEventListener('dragover', handleDragOver);
-    dropZone.addEventListener('dragleave', handleDragLeave);
-    dropZone.addEventListener('drop', handleDrop);
 
     // 보기 옵션(그리드/표시열) 이벤트
     initViewOptionControls();
@@ -600,50 +599,6 @@ function loadClassData() {
     renderHistory();
 }
 
-/* ========================================
-   드래그 앤 드롭 처리
-   ======================================== */
-function handleDragEnter(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    document.getElementById('dropZone').classList.add('drag-over');
-}
-
-function handleDragOver(e) {
-    e.preventDefault();
-    e.stopPropagation();
-}
-
-function handleDragLeave(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // 자식 요소로 이동할 때는 drag-over 유지
-    if (!e.currentTarget.contains(e.relatedTarget)) {
-        document.getElementById('dropZone').classList.remove('drag-over');
-    }
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    document.getElementById('dropZone').classList.remove('drag-over');
-    
-    const files = e.dataTransfer.files;
-    if (files.length === 0) return;
-    
-    const file = files[0];
-    
-    // PDF 파일인지 확인
-    if (file.type !== 'application/pdf') {
-        alert('PDF 파일만 업로드 가능합니다.');
-        return;
-    }
-    
-    // 기존 PDF 처리 함수 호출
-    processPdfFile(file);
-}
-
 
 
 /* ========================================
@@ -706,6 +661,55 @@ async function processPdfFile(file) {
         renderClasses();
     }
 }
+
+
+async function handleExcelUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const isExcel =
+        file.name.toLowerCase().endsWith('.xlsx') ||
+        file.name.toLowerCase().endsWith('.xls');
+
+    if (!isExcel) {
+        alert('엑셀 파일(.xlsx/.xls)만 업로드 가능합니다.');
+        event.target.value = '';
+        return;
+    }
+
+    try {
+        await processExcelFile(file);
+        alert('엑셀 업로드가 완료되었습니다!');
+    } catch (e) {
+        console.error('엑셀 처리 오류:', e);
+        alert('엑셀 파일 처리 중 오류가 발생했습니다.');
+    }
+
+    event.target.value = '';
+}
+
+async function processExcelFile(file) {
+    // SheetJS는 이미 index.html에서 로드되어 있음(XLSX)
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    const firstSheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[firstSheetName];
+
+    // 헤더 기반 JSON (첫 줄을 컬럼명으로)
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    // 일단 원장 저장 (다음 단계에서 매칭에 사용)
+    excelRoster = rows;
+    excelLoaded = true;
+
+    // (선택) 세션별 localStorage 저장까지는 다음 단계에서 안정적으로 붙이자
+}
+
+
+
+
+
 
 function parsePdfText(text) {
     const classes = {};
@@ -795,11 +799,83 @@ function parsePdfText(text) {
 
 
 
-
-
 /* ========================================
    렌더링: 반 목록
    ======================================== */
+
+function attachSplitDropZones() {
+    const excelZone = document.getElementById('excelDropZone');
+    const pdfZone = document.getElementById('pdfDropZone');
+
+    if (excelZone) {
+        bindDropZone(excelZone, {
+            accept: (file) => file && (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')),
+            onDrop: async (file) => {
+                await processExcelFile(file);
+                alert('엑셀 업로드가 완료되었습니다!');
+            }
+        });
+    }
+
+    if (pdfZone) {
+        bindDropZone(pdfZone, {
+            accept: (file) => file && file.type === 'application/pdf',
+            onDrop: async (file) => {
+                await processPdfFile(file);
+            }
+        });
+    }
+}
+
+function bindDropZone(zoneEl, { accept, onDrop }) {
+    // dragenter / dragover
+    zoneEl.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zoneEl.classList.add('drag-over');
+    });
+
+    zoneEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zoneEl.classList.add('drag-over');
+    });
+
+    // dragleave
+    zoneEl.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!zoneEl.contains(e.relatedTarget)) {
+            zoneEl.classList.remove('drag-over');
+        }
+    });
+
+    // drop
+    zoneEl.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zoneEl.classList.remove('drag-over');
+
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+
+        if (!accept(file)) {
+            alert('올바른 파일 형식이 아닙니다.');
+            return;
+        }
+
+        try {
+            await onDrop(file);
+        } catch (err) {
+            console.error('드롭 처리 오류:', err);
+            alert('파일 처리 중 오류가 발생했습니다.');
+        }
+    });
+}
+
+
 function renderClasses() {
     const container = document.getElementById('classesContainer');
     container.innerHTML = '';
@@ -817,17 +893,42 @@ function renderClasses() {
     
     if (validClasses.length === 0) {
         container.innerHTML = `
-            <div class="empty-message" style="grid-column: 1 / -1;">
-                <div class="icon">📄</div>
-                <p>PDF 파일을 업로드해주세요.</p>
-                <p>나이스 - 학적 - 진급대상자 반편성관리 - 일괄반편성 작업 후 => <br> 반편성결과조회 - 반편성조회(배정반기준) - 전체반 옵션 선택 - 출력 - PDF 저장</p>
-                <p><strong>엑셀 등을 변환한 PDF 파일은 호환되지 않습니다</strong></p>
-                <p>(여기에 파일 드래그&드롭 가능)</p>
+            <div class="empty-message split-upload" style="grid-column: 1 / -1;">
+                
+                <!-- 왼쪽: 엑셀 업로드 안내 -->
+                <div class="upload-panel upload-excel" id="excelDropZone">
+                    <div class="icon">📊</div>
+                    <p><strong>엑셀 파일을 업로드해주세요.</strong></p>
+                    <p style="color:#666; font-size:13px; line-height:1.5;">
+                        학적 - 진급대상자 반편성관리 - 일괄반편성 작업 후<br>
+                        반편성자료생성 - 자료내리기 - 재학생 - 내리기
+                    </p>
+                    <p style="color:#999; font-size:12px;">
+                        상단의 <b>엑셀 파일 선택</b> 버튼을 이용하세요.
+                    </p>
+                </div>
+
+                <!-- 오른쪽: PDF 업로드 안내 -->
+                <div class="upload-panel upload-pdf" id="pdfDropZone">
+                    <div class="icon">📄</div>
+                    <p><strong>PDF 파일을 업로드해주세요.</strong></p>
+                    <p style="color:#666; font-size:13px; line-height:1.5;">
+                        나이스 - 학적 - 진급대상자 반편성관리 - 일괄반편성 작업 후<br>
+                        반편성결과조회 - 반편성조회(배정반기준) - 전체반 옵션 선택 - 출력 - PDF 저장
+                    </p>
+                    <p style="color:#999; font-size:12px;">
+                        <strong>엑셀 등을 변환한 PDF 파일은 호환되지 않습니다</strong><br>
+                        (여기에 PDF 드래그&드롭 가능)
+                    </p>
+                </div>
+
             </div>
         `;
+        attachSplitDropZones();
         renderStatistics();
         return;
     }
+
     
     // 반 정렬 (학년-반 순)
     const sortedClasses = sortClasses(validClasses); 
