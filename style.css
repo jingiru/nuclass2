@@ -282,7 +282,7 @@ h2 {
     padding: 30px;
     border-radius: 12px;
     text-align: center;
-    max-width: 400px;
+    max-width: 350px;
     width: 90%;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
@@ -302,8 +302,8 @@ h2 {
 .modal-buttons {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 12px;
+    align-items: center;
 }
 
 /* 다운로드 버튼 */
@@ -317,6 +317,7 @@ h2 {
     font-size: 15px;
     font-weight: bold;
     transition: background-color 0.3s;
+    cursor: pointer;
 }
 
 .modal-btn:hover {
@@ -333,6 +334,7 @@ h2 {
     cursor: pointer;
     font-size: 14px;
     transition: background-color 0.3s;
+    margin-top: 20px;
 }
 
 .modal-close-btn:hover {
@@ -358,50 +360,48 @@ h2 {
 }
 
 
-.sample-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 15px;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-    margin-bottom: 10px;
+/* 위 2개 버튼 묶음 + 아래 버튼: 같은 폭 */
+.sample-choice,
+.sample-apply-all {
+  width: 100%;
+  max-width: 320px;   
 }
 
-.sample-row:last-child {
-    margin-bottom: 0;
+/* 위 버튼 2개는 반반 */
+.sample-choice {
+  display: flex;
+  gap: 12px;
 }
 
-.sample-name {
-    flex: 1;
-    text-align: left;
-    font-weight: bold;
-    color: #333;
-    font-size: 14px;
+.sample-choice .modal-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;     
+  font-size: 16px;
+  border-radius: 8px;
 }
 
-/* 다운로드 버튼 */
-.modal-btn.download-btn {
-    padding: 10px 10px;
-    font-size: 13px;
-    min-width: 70px;
+/* 아래 버튼은 전체폭 */
+.sample-apply-all {
+  background-color:#2196F3; 
+  display: block;
+  padding: 12px 14px;
+  font-size: 18px;
+  border-radius: 8px;
+  border:none;
+  outline:none;
 }
 
-/* 바로 적용 버튼 */
-.modal-btn.apply-btn {
-    padding: 10px 10px;
-    font-size: 13px;
-    min-width: 70px;
-    background-color: #2196F3;
-    border: none;
-    cursor: pointer;
+.sample-apply-all:hover{
+  background-color:#1976D2;   /* 진한 파랑 */
 }
 
-.modal-btn.apply-btn:hover {
-    background-color: #1976D2;
+.sample-apply-all:focus,
+.sample-apply-all:focus-visible{
+  outline:none;
 }
-
-
 
 /* ========================================
    빨간불 모달 스타일

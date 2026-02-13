@@ -28,18 +28,26 @@
             <h3>샘플 파일 다운로드</h3>
             <p>원하는 형식을 선택하세요</p>
 
-            <!-- 모달 팝업 - 샘플 다운로드 -->
+            <!-- 모달 팝업 - 샘플 선택/적용 -->
             <div class="modal-buttons">
-                <div class="sample-row">
-                    <span class="sample-name">엑셀 파일</span>
-                    <a href="./sample.xlsx" download class="modal-btn download-btn">다운로드</a>
-                    <button class="modal-btn apply-btn" onclick="applySampleExcel('sample.xlsx')">바로 적용</button>
-                </div>
-                <div class="sample-row">
-                    <span class="sample-name">PDF 파일</span>
-                    <a href="./sample.pdf" download class="modal-btn download-btn">다운로드</a>
-                    <button class="modal-btn apply-btn" onclick="applySamplePdf('sample.pdf')">바로 적용</button>
-                </div>
+
+              <!-- 위: 샘플 파일 2개 버튼 -->
+              <div class="sample-choice">
+                <a href="./sample.xlsx" download class="modal-btn download-btn">
+                  엑셀 샘플 파일
+                </a>
+
+                <a href="./sample.pdf" download class="modal-btn download-btn">
+                  PDF 샘플 파일
+                </a>
+              </div>
+
+              <!-- 아래: 샘플 바로 적용(엑셀+PDF 둘 다 적용) -->
+              <button class="modal-btn apply-btn sample-apply-all"
+                      type="button"
+                      onclick="applySampleAll()">
+                샘플 바로 적용
+              </button>
             </div>
 
             <button class="modal-close-btn" onclick="closeSampleModal()">닫기</button>

@@ -111,45 +111,9 @@ function closeSampleModal() {
     document.getElementById('sampleModal').style.display = 'none';
 }
 
-// 샘플 PDF 바로 적용
-async function applySamplePdf(filename) {
-    // 모달 닫기
-    closeSampleModal();
-    
-    // 로딩 표시
-    const container = document.getElementById('classesContainer');
-    container.innerHTML = `
-        <div class="loading">
-            <div class="spinner"></div>
-            <p>샘플 PDF를 불러오는 중입니다...</p>
-        </div>
-    `;
-    
-    try {
-        // GitHub Pages에서 PDF 파일 가져오기
-        const response = await fetch(`./${filename}`);
-        
-        if (!response.ok) {
-            throw new Error('파일을 불러올 수 없습니다.');
-        }
-        
-        // Blob으로 변환 후 File 객체 생성
-        const blob = await response.blob();
-        const file = new File([blob], filename, { type: 'application/pdf' });
-        
-        // 기존 PDF 처리 함수 호출
-        await processPdfFile(file);
-        
-    } catch (error) {
-        console.error('샘플 PDF 적용 오류:', error);
-        alert('샘플 파일을 불러오는 중 오류가 발생했습니다.');
-        renderClasses();
-    }
-}
 
-
-// 샘플 Excel 바로 적용
-async function applySampleExcel(filename) {
+// 샘플 Excel + PDF 한 번에 적용
+async function applySampleAll() {
     // 모달 닫기
     closeSampleModal();
 
@@ -158,40 +122,52 @@ async function applySampleExcel(filename) {
     container.innerHTML = `
         <div class="loading">
             <div class="spinner"></div>
-            <p>샘플 엑셀을 불러오는 중입니다...</p>
+            <p>샘플 파일(엑셀 + PDF)을 불러오는 중입니다...</p>
         </div>
     `;
 
     try {
-        // GitHub Pages에서 Excel 파일 가져오기
-        const response = await fetch(`./${filename}`);
+        // 1) 샘플 파일 2개를 동시에 fetch
+        const [excelRes, pdfRes] = await Promise.all([
+            fetch('./sample.xlsx'),
+            fetch('./sample.pdf')
+        ]);
 
-        if (!response.ok) {
-            throw new Error('파일을 불러올 수 없습니다.');
-        }
+        if (!excelRes.ok) throw new Error('샘플 엑셀 파일을 불러올 수 없습니다.');
+        if (!pdfRes.ok) throw new Error('샘플 PDF 파일을 불러올 수 없습니다.');
 
-        // Blob → File로 변환 (xlsx mime 지정)
-        const blob = await response.blob();
-        const file = new File(
-            [blob],
-            filename,
+        // 2) Blob -> File 변환
+        const [excelBlob, pdfBlob] = await Promise.all([
+            excelRes.blob(),
+            pdfRes.blob()
+        ]);
+
+        const excelFile = new File(
+            [excelBlob],
+            'sample.xlsx',
             { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
         );
 
-        // 기존 Excel 처리 함수 호출
-        await processExcelFile(file);
+        const pdfFile = new File(
+            [pdfBlob],
+            'sample.pdf',
+            { type: 'application/pdf' }
+        );
 
-        // 업로드 화면/상태 갱신
-        renderClasses();
-        checkUploadsReadyAndNotify();
+        // 3) 처리 순서: Excel -> PDF
+        // (PDF 처리 과정에서 checkUploadsReadyAndNotify()가 호출되므로, 엑셀을 먼저 로드해두면
+        //  PDF 끝나는 순간에 "둘 다 업로드 완료"로 자연스럽게 넘어감)
+        await processExcelFile(excelFile);
+        await processPdfFile(pdfFile);
+
+        // processPdfFile 안에서 renderClasses()/checkUploadsReadyAndNotify()까지 수행됨
 
     } catch (error) {
-        console.error('샘플 Excel 적용 오류:', error);
+        console.error('샘플 전체 적용 오류:', error);
         alert('샘플 파일을 불러오는 중 오류가 발생했습니다.');
         renderClasses();
     }
 }
-
 
 
 // 모달 바깥 영역 클릭 시 닫기
