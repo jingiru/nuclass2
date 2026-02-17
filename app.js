@@ -38,7 +38,6 @@ function scheduleSaveClassData() {
 }
 
 
-
 /* ========================================
    유틸리티 함수
    ======================================== */
@@ -89,9 +88,6 @@ function sortClasses(classes) {
 function getSortedValidClasses() {
     return sortClasses(getValidClasses());
 }
-
-
-
 
 
 /* ========================================
@@ -189,8 +185,6 @@ document.addEventListener('keydown', function(e) {
 });
 
 
-
-
 // PDF.js 워커 설정
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -264,7 +258,6 @@ function initEventListeners() {
 
     // 엑셀 업로드
     document.getElementById('excelUpload').addEventListener('change', handleExcelUpload);
-
     
     // 버튼들
     document.getElementById('globalSwapButton').addEventListener('click', swapStudents);
@@ -378,10 +371,6 @@ function applyGridColumns() {
 
     container.style.display = 'grid';
     container.style.gridTemplateColumns = `repeat(${viewOptions.gridColumns}, minmax(320px, 1fr))`;
-
-    if (!container.style.gap) {
-        container.style.gap = '20px';
-    }
 }
 
 /**
@@ -716,8 +705,6 @@ async function processPdfFile(file) {
     }
 }
 
-
-
 async function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -763,7 +750,6 @@ async function processExcelFile(file) {
     saveClassData();
     renderClasses();
 }
-
 
 
 function normNum(v) {
@@ -1317,9 +1303,7 @@ function renderStatistics() {
     const thead = document.querySelector('#currentStats thead');
     const tbody = document.querySelector('#currentStats tbody');
 
-    const validClasses = Object.keys(classData).filter(
-        cls => cls !== 'history' && cls !== 'undefined'
-    );
+    const validClasses = getSortedValidClasses();
 
     if (validClasses.length === 0) {
         thead.innerHTML = '';
@@ -1416,12 +1400,7 @@ function renderStatistics() {
     // 빨간불 위반 개수 계산
     const classViolations = calculateClassViolations();
 
-    validClasses.sort((a, b) => {
-        const [gradeA, classA] = a.split('-').map(Number);
-        const [gradeB, classB] = b.split('-').map(Number);
-        if (gradeA !== gradeB) return gradeA - gradeB;
-        return classA - classB;
-    }).forEach(cls => {
+    validClasses.forEach(cls => {
         const stats = classStats[cls];
         const row = document.createElement('tr');
 
@@ -1636,7 +1615,6 @@ function moveStudents() {
 }
 
 
-
 /* ========================================
    되돌리기(Undo) 기능
    ======================================== */
@@ -1699,7 +1677,6 @@ function updateUndoButtonState() {
         btn.disabled = !hasUndo;
     });
 }
-
 
 
 /* ========================================
@@ -1767,16 +1744,40 @@ function renderHistory() {
     });
 }
 
+
+// 폰트 적용 함수
+function registerPdfFont(doc) {
+    if (!window.NUCLASS_FONT_BASE64) {
+        throw new Error("NUCLASS_FONT_BASE64가 없습니다.");
+    }
+    doc.addFileToVFS("NotoSansKR-Regular.ttf", window.NUCLASS_FONT_BASE64);
+    doc.addFont("NotoSansKR-Regular.ttf", "NotoSansKR", "normal");
+    doc.addFileToVFS("NotoSansKR-Bold.ttf", window.NUCLASS_FONT_BOLD_BASE64);
+    doc.addFont("NotoSansKR-Bold.ttf", "NotoSansKR", "bold");
+    doc.setFont("NotoSansKR", "normal");
+}
+
+// 타임스탬프 함수
+function getFileTimestamp() {
+    const d = new Date();
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${yy}${mm}${dd}_${hh}${mi}${ss}`;
+}
+
+
 /* ========================================
    PDF 다운로드 - 확인용 (jsPDF)
    ======================================== */
 
 function downloadPdf() {
-    const validClasses = Object.keys(classData).filter(
-        cls => cls !== 'history' && cls !== 'undefined'
-    );
+    const sortedClasses = getSortedValidClasses();
 
-    if (validClasses.length === 0) {
+    if (sortedClasses.length === 0) {
         alert('다운로드할 데이터가 없습니다.');
         return;
     }
@@ -1785,40 +1786,19 @@ function downloadPdf() {
     const doc = new jsPDF();
 
     try {
-        if (!window.NUCLASS_FONT_BASE64) {
-            throw new Error("NUCLASS_FONT_BASE64가 없습니다. nuclass_font.js 로딩 순서를 확인하세요.");
-        }
-        const FONT_NAME = "NotoSansKR";
-
-        doc.addFileToVFS("NotoSansKR-Regular.ttf", window.NUCLASS_FONT_BASE64);
-        doc.addFont("NotoSansKR-Regular.ttf", "NotoSansKR", "normal");
-
-        doc.addFileToVFS("NotoSansKR-Bold.ttf", window.NUCLASS_FONT_BOLD_BASE64);
-        doc.addFont("NotoSansKR-Bold.ttf", "NotoSansKR", "bold");
-
-        doc.setFont(FONT_NAME, "normal");
+        registerPdfFont(doc)
     } catch (e) {
         console.error(e);
         alert("PDF 한글 폰트 로딩에 실패했습니다. nuclass_font.js가 정상 로딩되는지 확인하세요.");
         return;
     }
-
-    const now = new Date().toLocaleString('ko-KR');
-    const year = new Date().getFullYear();
+    const nowDate = new Date()
+    const now = nowDate.toLocaleString('ko-KR');
+    const year = nowDate.getFullYear();
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const centerX = pageWidth / 2;
-
-    // -------------------------------
-    // 0) 공통 정렬/정의
-    // -------------------------------
-    const sortedClasses = [...validClasses].sort((a, b) => {
-        const [gradeA, classA] = a.split('-').map(Number);
-        const [gradeB, classB] = b.split('-').map(Number);
-        if (gradeA !== gradeB) return gradeA - gradeB;
-        return classA - classB;
-    });
 
     // -------------------------------
     // 1) 첫 페이지: 제목
@@ -2114,22 +2094,10 @@ function downloadPdf() {
             }
         });
     });
+    // 파일명 생성
+    const fileTimestamp = getFileTimestamp();
 
-    const nowDate = new Date();
-
-    const yy = String(nowDate.getFullYear()).slice(-2);
-    const mm = String(nowDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(nowDate.getDate()).padStart(2, '0');
-
-    const hh = String(nowDate.getHours()).padStart(2, '0');
-    const mi = String(nowDate.getMinutes()).padStart(2, '0');
-    const ss = String(nowDate.getSeconds()).padStart(2, '0');
-
-    const fileTimestamp = `${yy}${mm}${dd}_${hh}${mi}${ss}`;
-
-
-
-    doc.save(`${currentSession.schoolName}_${currentSession.grade}_반편성결과_${fileTimestamp}.pdf`);
+    doc.save(`${currentSession.schoolName}_${currentSession.grade}_반편성결과_확인용_${fileTimestamp}.pdf`);
 }
 
 
@@ -2163,17 +2131,13 @@ function maskName(name) {
 
 /* ========================================
    PDF 다운로드 - 공지용 (jsPDF)
-   - 통계, 변경 이력 제외
-   - 기준성적 제외
-   - 학년, 반, 번호, 성명, 생년월일, 성별, 이전학년, 이전반, 이전번호만 포함
+   - 통계, 변경 이력 기준성적 제외
    ======================================== */
 
 function downloadPdfPublic() {
-    const validClasses = Object.keys(classData).filter(
-        cls => cls !== 'history' && cls !== 'undefined'
-    );
+    const sortedClasses = getSortedValidClasses();
 
-    if (validClasses.length === 0) {
+    if (sortedClasses.length === 0) {
         alert('다운로드할 데이터가 없습니다.');
         return;
     }
@@ -2182,18 +2146,7 @@ function downloadPdfPublic() {
     const doc = new jsPDF();
 
     try {
-        if (!window.NUCLASS_FONT_BASE64) {
-            throw new Error("NUCLASS_FONT_BASE64가 없습니다. nuclass_font.js 로딩 순서를 확인하세요.");
-        }
-        const FONT_NAME = "NotoSansKR";
-
-        doc.addFileToVFS("NotoSansKR-Regular.ttf", window.NUCLASS_FONT_BASE64);
-        doc.addFont("NotoSansKR-Regular.ttf", "NotoSansKR", "normal");
-
-        doc.addFileToVFS("NotoSansKR-Bold.ttf", window.NUCLASS_FONT_BOLD_BASE64);
-        doc.addFont("NotoSansKR-Bold.ttf", "NotoSansKR", "bold");
-
-        doc.setFont(FONT_NAME, "normal");
+        registerPdfFont(doc);
     } catch (e) {
         console.error(e);
         alert("PDF 한글 폰트 로딩에 실패했습니다. nuclass_font.js가 정상 로딩되는지 확인하세요.");
@@ -2201,16 +2154,6 @@ function downloadPdfPublic() {
     }
 
     const year = new Date().getFullYear();
-
-    // -------------------------------
-    // 반 정렬
-    // -------------------------------
-    const sortedClasses = [...validClasses].sort((a, b) => {
-        const [gradeA, classA] = a.split('-').map(Number);
-        const [gradeB, classB] = b.split('-').map(Number);
-        if (gradeA !== gradeB) return gradeA - gradeB;
-        return classA - classB;
-    });
 
     // -------------------------------
     // 반별 테이블만 출력 (통계/이력 없음, 기준성적 없음)
@@ -2283,41 +2226,26 @@ function downloadPdfPublic() {
     });
 
     // 파일명 생성
-    const nowDate = new Date();
-    const yy = String(nowDate.getFullYear()).slice(-2);
-    const mm = String(nowDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(nowDate.getDate()).padStart(2, '0');
-    const hh = String(nowDate.getHours()).padStart(2, '0');
-    const mi = String(nowDate.getMinutes()).padStart(2, '0');
-    const ss = String(nowDate.getSeconds()).padStart(2, '0');
-    const fileTimestamp = `${yy}${mm}${dd}_${hh}${mi}${ss}`;
+    const fileTimestamp = getFileTimestamp();
 
     doc.save(`${currentSession.schoolName}_${currentSession.grade}_반편성결과_공지용_${fileTimestamp}.pdf`);
 }
-
 
 
 /* ========================================
    엑셀 다운로드 (SheetJS)
    ======================================== */
 function downloadExcel() {
-    const validClasses = Object.keys(classData).filter(
-        cls => cls !== 'history' && cls !== 'undefined'
-    );
+    const sortedClasses = getSortedValidClasses();
     
-    if (validClasses.length === 0) {
+    if (sortedClasses.length === 0) {
         alert('다운로드할 데이터가 없습니다.');
         return;
     }
     
     const allData = [];
     
-    validClasses.sort((a, b) => {
-        const [gradeA, classA] = a.split('-').map(Number);
-        const [gradeB, classB] = b.split('-').map(Number);
-        if (gradeA !== gradeB) return gradeA - gradeB;
-        return classA - classB;
-    }).forEach(cls => {
+    sortedClasses.forEach(cls => {
         const [grade, classNum] = cls.split('-');
         const students = classData[cls];
         
@@ -2594,12 +2522,8 @@ function handleStudentInput(e, config) {
         return;
     }
     
-    // 5) 단일 학생 처리
-    const displayName = candidates[0].name;
-    
+    // 5) 단일 학생 처리    
     if (config.storageType === 'array') {
-        // displayName vs candidates[0].displayName 구분 필요
-        const nameToStore = candidates.length === 1 ? candidates[0].name : displayName;
         if (config.duplicateCheck && config.getStorage().includes(nameToStore)) {
             alert('이미 추가된 학생입니다.');
             input.value = '';
@@ -2792,7 +2716,6 @@ function checkTeamViolation(team) {
     team.members.forEach(member => {
         const memberClass = findStudentClass(member);
         if (memberClass === leaderClass) {
-            const [, classNum] = memberClass.split('-');
             violations.push(member);
         }
     });
