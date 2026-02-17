@@ -2368,6 +2368,10 @@ function restoreFromJson(event) {
             movedStudents = new Set(data.movedStudents || []);
             separationGroups = data.separationGroups || [];
             separationTeams = data.separationTeams || [];
+
+            const hasClassData = Object.keys(classData).some(k => k !== 'history' && k !== 'undefined');
+            pdfLoaded = hasClassData;
+            if (pdfLoaded) excelLoaded = true;
             
             saveClassData();
             saveRedFlagData();
