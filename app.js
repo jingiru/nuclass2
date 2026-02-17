@@ -1792,7 +1792,6 @@ function downloadPdf() {
         doc.addFileToVFS("NotoSansKR-Bold.ttf", window.NUCLASS_FONT_BOLD_BASE64);
         doc.addFont("NotoSansKR-Bold.ttf", "NotoSansKR", "bold");
 
-        window.__NUCLASS_PDF_FONT_REGISTERED__ = true;
         doc.setFont(FONT_NAME, "normal");
     } catch (e) {
         console.error(e);
@@ -2190,7 +2189,6 @@ function downloadPdfPublic() {
         doc.addFileToVFS("NotoSansKR-Bold.ttf", window.NUCLASS_FONT_BOLD_BASE64);
         doc.addFont("NotoSansKR-Bold.ttf", "NotoSansKR", "bold");
 
-        window.__NUCLASS_PDF_FONT_REGISTERED__ = true;
         doc.setFont(FONT_NAME, "normal");
     } catch (e) {
         console.error(e);
@@ -2312,7 +2310,7 @@ function downloadExcel() {
     
     validClasses.sort((a, b) => {
         const [gradeA, classA] = a.split('-').map(Number);
-        const [gradeB, classB] = a.split('-').map(Number);
+        const [gradeB, classB] = b.split('-').map(Number);
         if (gradeA !== gradeB) return gradeA - gradeB;
         return classA - classB;
     }).forEach(cls => {
@@ -3027,31 +3025,6 @@ function showStudentSelectionUI(candidates, onSelect) {
 }
 
 
-
-
-// 학생 이름 유효성 검사
-function validateStudentName(inputValue) {
-    // 모든 학생 순회하면서 매칭 확인
-    let found = false;
-    
-    Object.keys(classData).forEach(cls => {
-        if (cls === 'history' || cls === 'undefined') return;
-        
-        const students = classData[cls] || [];
-        students.forEach(student => {
-            const name = student.성명;
-            const prevClass = student.이전학적반 || '';
-            
-            // 정확히 일치하거나, 동명이인 형식으로 일치
-            if (inputValue === name || 
-                inputValue === `${name}(${prevClass}반, ${student.성별})`) {
-                found = true;
-            }
-        });
-    });
-    
-    return found;
-}
 
 // 선택된 학생 태그 렌더링
 function renderSelectedTags() {
