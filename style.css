@@ -15,7 +15,6 @@ body {
 h1 {
     text-align: center;
     color: #4CAF50;
-    margin-top: 20px;
     margin-bottom: 0px;
 }
 
@@ -34,7 +33,6 @@ h1 {
     width: 90%;
     max-width: 1800px;
     margin: 0 auto;
-    padding: 20px;
 }
 
 /* ========================================
@@ -48,7 +46,6 @@ h1 {
     margin: -20px;
     font-weight: bold;
 }
-
 
 /* ========================================
    고정 헤더
