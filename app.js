@@ -919,7 +919,11 @@ function attachUniqueIdsToClassData() {
     });
 }
 
-
+function normName(name) {
+  return String(name ?? '')
+    .replace(/\s+/g, ' ')   // 연속 공백/탭/줄바꿈 → 1칸
+    .trim();
+}
 
 function parsePdfText(text) {
     const classes = {};
@@ -961,7 +965,7 @@ function parsePdfText(text) {
         
         classes[classKey].push({
             번호: number,
-            성명: name.trim(),
+            성명: normName(name),
             생년월일: birthDate,
             성별: gender,
             기준성적: score,
@@ -993,8 +997,8 @@ function parsePdfText(text) {
         
         classes[classKey].push({
             번호: number,
-            성명: name.trim(),
-            생년월일: birthDate + '.',
+            성명: normName(name),
+            생년월일: birthDate,
             성별: gender,
             기준성적: score,
             이전학적: '전입',
