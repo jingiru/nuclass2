@@ -8,7 +8,6 @@
 body {
     font-family: 'Roboto', sans-serif;
     margin: 0;
-    padding: 0;
     background-color: #f4f4f9;
     color: #333;
 }
@@ -20,10 +19,6 @@ h1 {
     margin-bottom: 0px;
 }
 
-h2 {
-    margin-top: -5px;
-    margin-bottom: 10px;
-}
 
 /* ========================================
    화면 전환용
@@ -1109,35 +1104,6 @@ h2 {
     color: #666;
 }
 
-/* ========================================
-   알림 토스트 (선택사항)
-   ======================================== */
-.toast {
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #333;
-    color: white;
-    padding: 15px 30px;
-    border-radius: 8px;
-    font-size: 14px;
-    z-index: 9999;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.toast.show {
-    opacity: 1;
-}
-
-.toast.success {
-    background-color: #4CAF50;
-}
-
-.toast.error {
-    background-color: #f44336;
-}
 
 /* ========================================
    반응형 조정
