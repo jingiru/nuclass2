@@ -12,6 +12,9 @@ let selectedTagStudents = [];   // 모달에서 현재 선택 중인 학생들 (
 let separationTeams = [];       // 팀 기반 분리
 let excelRoster = null;   // 업로드된 엑셀 원장(학번 포함)
 let excelLoaded = false;  // 엑셀 업로드 여부
+let excelPrevKeyToUniqueId = new Map();
+let excelNameBirthToUniqueId = new Map(); 
+let excelNameToUniqueId = new Map(); 
 let excelUploadedAt = null;
 let pdfLoaded = false;        // PDF 업로드 여부
 let pdfUploadedAt = null;
@@ -698,6 +701,8 @@ async function processPdfFile(file) {
         pdfLoaded = true;
         pdfUploadedAt = new Date();
         
+        attachUniqueIdsToClassData();
+        
         saveClassData();
         renderClasses();
         renderHistory();
@@ -753,12 +758,166 @@ async function processExcelFile(file) {
     excelLoaded = true;
     excelUploadedAt = new Date();
 
+    buildExcelPrevMap();
+    attachUniqueIdsToClassData();
+    saveClassData();
     renderClasses();
-
 }
 
 
 
+function normNum(v) {
+    const n = String(v ?? '').replace(/[^\d]/g, ''); 
+    return n === '' ? '' : String(Number(n));        
+}
+
+function normBirth(v) {
+    // 2012.02.10. / 2012.02.10 / 2012-02-10 / Date객체 / 엑셀 날짜형 등 → digits만 추출
+    const digits = String(v ?? '').replace(/[^\d]/g, '');
+    return digits.length >= 8 ? digits.slice(0, 8) : digits;
+}
+
+function makePrevKey(prevGrade, prevClass, prevNo) {
+    const g = normNum(prevGrade);
+    const c = normNum(prevClass);
+    const n = normNum(prevNo);
+    
+    // 모두 유효한 경우만 키 반환 (빈 문자열이면 null 반환)
+    if (g && c && n) {
+        return `${g}-${c}-${n}`;
+    }
+    return null; // 유효하지 않으면 null 반환
+}
+
+function buildExcelPrevMap() {
+    excelPrevKeyToUniqueId = new Map();
+    excelNameBirthToUniqueId = new Map();
+    excelNameToUniqueId = new Map(); 
+
+    if (!Array.isArray(excelRoster)) return;
+
+    excelRoster.forEach(row => {
+        const uniqueId = row['학번'];
+        if (!uniqueId) return; // 학번 없으면 스킵
+
+        // 1) 이전학적 키 매칭 - 조건 강화
+        const prevG = normNum(row['이전학년']);
+        const prevC = normNum(row['이전반']);
+        const prevN = normNum(row['이전번호']);
+        
+        // 모두 유효한 경우만 키 생성
+        if (prevG && prevC && prevN) {
+            const key = `${prevG}-${prevC}-${prevN}`;
+            excelPrevKeyToUniqueId.set(key, String(uniqueId).trim());
+        }
+
+        // 2) 성명+생년월일 매칭 (전입생 fallback - 우선순위 상향)
+        const name = String(row['성명'] ?? '').trim();
+        const birth = normBirth(row['생년월일']);
+        if (name && birth) {
+            const nbKey = `${name}|${birth}`;
+            excelNameBirthToUniqueId.set(nbKey, String(uniqueId).trim());
+        }
+
+        // 3) 성명 단독 맵 (동명이인 처리 개선)
+        if (name) {
+            if (!excelNameToUniqueId.has(name)) {
+                excelNameToUniqueId.set(name, String(uniqueId).trim());
+            } else {
+                // 동명이인이 있으면 배열로 저장
+                const existing = excelNameToUniqueId.get(name);
+                if (Array.isArray(existing)) {
+                    existing.push(String(uniqueId).trim());
+                } else {
+                    excelNameToUniqueId.set(name, [existing, String(uniqueId).trim()]);
+                }
+            }
+        }
+    });
+}
+
+
+function attachUniqueIdsToClassData() {
+    if (!excelLoaded || !pdfLoaded) return;
+    if (!classData || typeof classData !== 'object') return;
+
+    // 매칭맵이 비어있으면 먼저 생성
+    if (!excelPrevKeyToUniqueId || excelPrevKeyToUniqueId.size === 0) {
+        buildExcelPrevMap();
+    }
+
+    Object.keys(classData).forEach(cls => {
+        if (cls === 'history' || cls === 'undefined') return;
+
+        const students = classData[cls] || [];
+        
+        students.forEach(student => {
+            if (student.고유학번) return; // 이미 학번이 있으면 스킵
+
+            let uniqueId = null;
+
+            // 전입생 처리 개선
+            if (student.이전학적 === '전입') {
+                const name = String(student.성명 ?? '').trim();
+                const birth = normBirth(student.생년월일);
+                
+                // 1순위: 성명 + 생년월일 매칭 (가장 정확)
+                if (name && birth) {
+                    const nbKey = `${name}|${birth}`;
+                    uniqueId = excelNameBirthToUniqueId.get(nbKey);
+                    
+                    if (uniqueId) {
+                        console.log(`✅ 전입생 매칭 성공 (성명+생년월일): ${name} → ${uniqueId}`);
+                    }
+                }
+                
+                // 2순위: 성명 단독 매칭 (동명이인이 없는 경우만)
+                if (!uniqueId && name) {
+                    const nameMatch = excelNameToUniqueId.get(name);
+                    if (nameMatch && !Array.isArray(nameMatch)) {
+                        uniqueId = nameMatch;
+                        console.log(`⚠️ 전입생 매칭 (성명 단독): ${name} → ${uniqueId}`);
+                    } else if (Array.isArray(nameMatch)) {
+                        console.warn(`❌ 전입생 매칭 실패 (동명이인): ${name}`);
+                    }
+                }
+                
+                if (!uniqueId) {
+                    console.error(`❌ 전입생 고유학번 매칭 실패: ${name} (생년월일: ${birth})`);
+                }
+            }
+            
+            // 일반 학생 처리 (이전학적이 있는 경우)
+            else {
+                // 1순위: 이전학적 키로 매칭
+                const prevKey = makePrevKey(
+                    student.이전학적학년, 
+                    student.이전학적반, 
+                    student.이전학적번호
+                );
+                
+                if (prevKey) {
+                    uniqueId = excelPrevKeyToUniqueId.get(prevKey);
+                }
+
+                // 2순위: 성명 + 생년월일 fallback
+                if (!uniqueId) {
+                    const name = String(student.성명 ?? '').trim();
+                    const birth = normBirth(student.생년월일);
+                    if (name && birth) {
+                        const nbKey = `${name}|${birth}`;
+                        uniqueId = excelNameBirthToUniqueId.get(nbKey);
+                    }
+                }
+            }
+
+            // 최종 학번 할당
+            if (uniqueId) {
+                student.고유학번 = uniqueId;
+            }
+        });
+    });
+}
 
 
 
@@ -803,7 +962,7 @@ function parsePdfText(text) {
         classes[classKey].push({
             번호: number,
             성명: name.trim(),
-            생년월일: birthDate + '.',
+            생년월일: birthDate,
             성별: gender,
             기준성적: score,
             이전학적: `${prevGrade} ${prevClass} ${prevNumber}`,
@@ -840,10 +999,15 @@ function parsePdfText(text) {
             기준성적: score,
             이전학적: '전입',
             이전학적학년: String(parseInt(grade) - 1),
-            이전학적반: '0',
-            이전학적번호: '0'
+            이전학적반: '',
+            이전학적번호: ''
         });
     }
+
+    // 번호 기준 정렬
+    Object.keys(classes).forEach(cls => {
+        classes[cls].sort((a, b) => Number(a.번호) - Number(b.번호));
+    });
     
     return classes;
 }
@@ -2157,7 +2321,7 @@ function downloadExcel() {
         
         students.forEach(student => {
             allData.push({
-                '학번': Number(grade) * 1000 + Number(classNum) * 100 + Number(student.번호),
+                '학번': String(student.고유학번 || ''),
                 '성명': student.성명,
                 '이전주야과정구분': '주간',
                 '이전학년': student.이전학적학년 ? `${student.이전학적학년}학년` : '',
@@ -2188,6 +2352,14 @@ function downloadExcel() {
         { wch: 10 }, // 진급반코드
         { wch: 10 }  // 진급반번호
     ];
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = 1; R <= range.e.r; R++) {  // 1행부터 (0행은 헤더)
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: 0 });
+        if (ws[cellAddress]) {
+            ws[cellAddress].z = '@';  // 텍스트 형식
+            ws[cellAddress].t = 's';  // cell type을 string으로 강제
+        }
+    }
     
     XLSX.writeFile(wb, `${currentSession.schoolName}_${currentSession.grade}_반편성결과.xlsx`);
 }
