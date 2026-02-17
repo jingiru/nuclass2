@@ -610,7 +610,7 @@ h1 {
   align-items:center;
   justify-content:space-between;
   gap:16px;
-  margin-bottom:10px;
+  margin-bottom:5px;
 }
 
 .stats-header h2{
@@ -714,7 +714,7 @@ h1 {
 #statsContainer {
     background-color: #ffffff;
     border-radius: 10px;
-    padding: 20px;
+    padding: 15px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
@@ -760,6 +760,22 @@ h1 {
 #currentStats td:first-child {
     font-weight: bold;
     background-color: #e3f2fd;
+}
+
+/* 통계 제목 + 토글 버튼을 한 줄로 */
+.stats-title-area{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+/* 버튼이 너무 커 보이면 살짝 컴팩트 */
+.btn-stats-toggle{
+  height:32px;
+  padding:0 12px;
+  border-radius:10px;
+  font-size:13px;
+  white-space:nowrap;
 }
 
 

@@ -193,9 +193,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
    ======================================== */
 let viewOptions = {
     gridColumns: 2,       // 2 | 3 | 4
+    showStats: true, 
     showBirthdate: true,  // 생년월일 열 표시
     showGender: true,     // 성별 열 표시
-    showSpecial: false   // ✅ 특이사항 열 표시
+    showSpecial: false   // 특이사항 열 표시
 
 };
 
@@ -214,9 +215,10 @@ function loadViewOptions() {
             const parsed = JSON.parse(saved);
             viewOptions = {
                 gridColumns: Number(parsed.gridColumns) || 2,
+                showStats: parsed.showStats !== false,    
                 showBirthdate: parsed.showBirthdate !== false,
                 showGender: parsed.showGender !== false,
-                showSpecial: parsed.showSpecial === true // ✅ 기본 false 유지
+                showSpecial: parsed.showSpecial === true  
             };
         }
     } catch (e) {
@@ -304,15 +306,24 @@ function initViewOptionControls() {
             if ([2, 3, 4].includes(value)) {
                 viewOptions.gridColumns = value;
                 saveViewOptions();
-                applyGridColumns();        // 즉시 반영
+                applyGridColumns();        
             }
         });
     });
 
     // 체크박스(생년월일/성별)
+    const stats = document.getElementById('showStats'); 
     const birth = document.getElementById('showBirthdate');
     const gender = document.getElementById('showGender');
     const special = document.getElementById('showSpecial'); 
+
+    if (stats) {
+        stats.addEventListener('change', () => {
+            viewOptions.showStats = stats.checked;
+            saveViewOptions();
+            applyStatsVisibility();
+        });
+    }
 
     if (birth) {
         birth.addEventListener('change', () => {
@@ -347,10 +358,12 @@ function syncViewControlsFromState() {
     });
 
     // 체크박스 동기화
+    const stats = document.getElementById('showStats'); 
     const birth = document.getElementById('showBirthdate');
     const gender = document.getElementById('showGender');
     const special = document.getElementById('showSpecial');
 
+    if (stats) stats.checked = !!viewOptions.showStats; 
     if (birth) birth.checked = !!viewOptions.showBirthdate;
     if (gender) gender.checked = !!viewOptions.showGender;
     if (special) special.checked = !!viewOptions.showSpecial; 
@@ -363,6 +376,7 @@ function applyViewOptions() {
     // (2) 실제 화면 반영
     applyGridColumns();
     applyColumnVisibility();
+    applyStatsVisibility(); 
 }
 
 function applyGridColumns() {
@@ -403,6 +417,12 @@ function applyColumnVisibility() {
             toggleCellDisplay(tds[8], viewOptions.showSpecial);
         });
     });
+}
+
+function applyStatsVisibility() {
+    const statsBody = document.getElementById('statsBody');
+    if (!statsBody) return;
+    statsBody.style.display = viewOptions.showStats ? '' : 'none';
 }
 
 function toggleCellDisplay(cell, show) {
@@ -1153,13 +1173,13 @@ function renderUploadSplitScreen(container) {
 function renderClasses() {
     const container = document.getElementById('classesContainer');
 
-    // ✅ 둘 다 업로드 전: 업로드 화면만
+    // 둘 다 업로드 전: 업로드 화면만
     if (!(excelLoaded && pdfLoaded)) {
         renderUploadSplitScreen(container);
         return;
     }
 
-    // ✅ 여기부터는 둘 다 업로드 된 상태
+    // 여기부터는 둘 다 업로드 된 상태
     container.innerHTML = '';
     const validClasses = getValidClasses();
 
@@ -1172,7 +1192,7 @@ function renderClasses() {
     document.getElementById('backupButton').disabled = !hasData;
     document.getElementById('resetDataButton').disabled = !hasData;
 
-    // ✅ 둘 다 업로드는 됐지만 validClasses가 0이면 (방어)
+    // 둘 다 업로드는 됐지만 validClasses가 0이면 (방어)
     if (!hasData) {
         clearStatisticsUI();
         return;
