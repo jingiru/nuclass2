@@ -192,12 +192,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
    보기 옵션(그리드/표시열) 상태
    ======================================== */
 let viewOptions = {
-    gridColumns: 2,       // 2 | 3 | 4
+    gridColumns: 2,       
     showStats: true, 
-    showBirthdate: true,  // 생년월일 열 표시
-    showGender: true,     // 성별 열 표시
-    showSpecial: false   // 특이사항 열 표시
-
+    showBirthdate: true,  
+    showGender: true,     
+    showSpecial: false,
+    fontScale: 1
 };
 
 function getViewOptionsKey() {
@@ -214,6 +214,7 @@ function loadViewOptions() {
         if (saved) {
             const parsed = JSON.parse(saved);
             viewOptions = {
+                fontScale: 1,
                 gridColumns: Number(parsed.gridColumns) || 2,
                 showStats: parsed.showStats !== false,    
                 showBirthdate: parsed.showBirthdate !== false,
@@ -298,6 +299,43 @@ function initEventListeners() {
    보기 옵션 컨트롤 이벤트 / 적용
    ======================================== */
 function initViewOptionControls() {
+
+    const plusBtn = document.getElementById('fontSizePlus');
+    const minusBtn = document.getElementById('fontSizeMinus');
+    const fontSizeRadios = document.querySelectorAll('input[name="fontSize"]');
+
+    fontSizeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (radio.value === 'plus') {
+                viewOptions.fontScale = Math.min(viewOptions.fontScale + 0.1, 1.8);
+            } else {
+                viewOptions.fontScale = Math.max(viewOptions.fontScale - 0.1, 0.7);
+            }
+
+            saveViewOptions();
+            applyFontScale();
+
+            // 다시 체크 해제 (토글형 버튼처럼 쓰기 위해)
+            radio.checked = false;
+        });
+    });
+
+    if (plusBtn) {
+        plusBtn.addEventListener('click', () => {
+            viewOptions.fontScale = Math.min(viewOptions.fontScale + 0.1, 1.8);
+            saveViewOptions();
+            applyFontScale();
+        });
+    }
+
+    if (minusBtn) {
+        minusBtn.addEventListener('click', () => {
+            viewOptions.fontScale = Math.max(viewOptions.fontScale - 0.1, 0.7);
+            saveViewOptions();
+            applyFontScale();
+        });
+    }
+
     // 라디오(그리드 2/3/4)
     const gridRadios = document.querySelectorAll('input[name="gridColumns"]');
     gridRadios.forEach(radio => {
@@ -373,10 +411,11 @@ function applyViewOptions() {
     // (1) 컨트롤 상태 동기화
     syncViewControlsFromState();
 
-    // (2) 실제 화면 반영
+    // (2) 실제 화면 반영 
+    applyFontScale();
     applyGridColumns();
     applyColumnVisibility();
-    applyStatsVisibility(); 
+    applyStatsVisibility();
 }
 
 function applyGridColumns() {
@@ -385,6 +424,37 @@ function applyGridColumns() {
 
     container.style.display = 'grid';
     container.style.gridTemplateColumns = `repeat(${viewOptions.gridColumns}, minmax(320px, 1fr))`;
+}
+
+function applyFontScale() {
+    const scale = Number(viewOptions.fontScale || 1);
+
+    // 1) 반별 학생 테이블 글자 크기
+    document.querySelectorAll('.student-table').forEach(table => {
+        table.style.fontSize = `${13 * scale}px`; // 혹시 table만으로 안 먹는 경우가 있어서 아래도 같이
+        table.querySelectorAll('th, td').forEach(cell => {
+            cell.style.fontSize = `${13 * scale}px`;
+        });
+
+        // 메모 input도 별도 처리(기본 font-size가 CSS로 잡혀있을 확률 높음)
+        table.querySelectorAll('input.special-input').forEach(inp => {
+            inp.style.fontSize = `${13 * scale}px`;
+        });
+    });
+
+    // 2) 행 높이
+    document.querySelectorAll('.student-row').forEach(row => {
+        row.style.height = `${26 * scale}px`;
+    });
+
+    // 3) 통계 테이블도 같이 커지게(원하면 제거 가능)
+    const stats = document.getElementById('currentStats');
+    if (stats) {
+        stats.style.fontSize = `${13 * scale}px`;
+        stats.querySelectorAll('th, td').forEach(cell => {
+            cell.style.fontSize = `${13 * scale}px`;
+        });
+    }
 }
 
 /**

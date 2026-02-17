@@ -15,8 +15,6 @@ body {
 h1 {
     text-align: center;
     color: #4CAF50;
-    margin-top: 20px;
-    margin-bottom: 0px;
 }
 
 
@@ -34,7 +32,6 @@ h1 {
     width: 90%;
     max-width: 1800px;
     margin: 0 auto;
-    padding: 20px;
 }
 
 /* ========================================
@@ -49,10 +46,6 @@ h1 {
     font-weight: bold;
 }
 
-.school-info h2 {
-    margin: 0;
-    padding: 10px 0;
-}
 
 /* ========================================
    고정 헤더
@@ -599,12 +592,10 @@ h1 {
 }
 
 
-
 /* ========================================
    통계 테이블 컨테이너
    ======================================== */
 
-/* ===== 현재 현황 줄(타이틀 + 옵션) ===== */
 .stats-header{
   display:flex;
   align-items:center;
@@ -616,7 +607,7 @@ h1 {
 .stats-header h2{
   margin:0;
   line-height:1.2;
-  color:#4CAF50;           /* '현재 현황' 초록 */
+  color:#4CAF50;           
   font-weight:700;
 }
 
@@ -626,7 +617,7 @@ h1 {
   gap:10px;
   white-space:nowrap;
   flex-wrap:nowrap;
-  color:#4CAF50;           /* 옵션 글자도 초록 */
+  color:#4CAF50;           
   font-weight:700;
   font-size:14px;
 }
@@ -885,11 +876,6 @@ h1 {
 }
 
 
-
-
-
-
-
 /* ========================================
    반별 컨테이너
    ======================================== */
@@ -938,7 +924,6 @@ h1 {
     border: 1px solid #ddd;
     padding: 5px 6px;
     text-align: center;
-    font-size: 12px;
 }
 
 .student-table th {
