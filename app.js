@@ -2524,12 +2524,12 @@ function handleStudentInput(e, config) {
     
     // 5) 단일 학생 처리    
     if (config.storageType === 'array') {
-        if (config.duplicateCheck && config.getStorage().includes(nameToStore)) {
+        if (config.duplicateCheck && config.getStorage().includes(candidates[0].name)) {
             alert('이미 추가된 학생입니다.');
             input.value = '';
             return;
         }
-        config.setStorage(nameToStore);
+        config.setStorage(candidates[0].name);
     } else {
         config.setStorage(candidates[0].name);
     }
