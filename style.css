@@ -35,16 +35,10 @@ h1 {
     margin: 0 auto;
 }
 
-/* ========================================
-   학교 정보 헤더
-   ======================================== */
-.school-info {
-    text-align: center;
-    background-color: #f4f4f9;
-    font-size: 1.1rem;
-    color: #865DD5;
-    margin: -20px;
-    font-weight: bold;
+.container h3 {
+    font-size: 14px;
+    color: #666;
+    margin-top: 0;
 }
 
 /* ========================================
@@ -186,7 +180,38 @@ h1 {
 .login-container h1 {
     font-size: 28px;
     margin-bottom: 5px;
-    color: #4CAF50;
+    color: inherit;
+}
+
+/* 반올림 브랜드 로고 */
+.brand-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    line-height: 1;
+}
+.brand-ban {
+    background: #4CAF50;
+    color: #fff;
+    font-weight: 900;
+    font-size: 30px;
+    padding: 3px 11px 4px;
+    border-radius: 10px;
+    letter-spacing: -0.5px;
+}
+.brand-ollim {
+    color: #1B5E20;
+    font-weight: 900;
+    font-size: 30px;
+    letter-spacing: -0.5px;
+}
+.brand-arrow {
+    font-size: 13px;
+    color: #81C784;
+    font-weight: 700;
+    align-self: flex-start;
+    margin-top: 4px;
+    margin-left: 1px;
 }
 
 .login-container h3 {

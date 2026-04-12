@@ -1895,7 +1895,7 @@ function downloadPdf() {
     // -------------------------------
     doc.setFontSize(14);
     doc.text(
-        `${currentSession.schoolName} ${currentSession.grade} NU:CLASS 반편성내역`,
+        `${currentSession.schoolName} ${currentSession.grade} [반올림] 반편성내역`,
         centerX,
         15,
         { align: 'center' }
